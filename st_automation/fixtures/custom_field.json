@@ -1,0 +1,92 @@
+[
+	{
+		"name": "Job Applicant-st_section_booking",
+		"doctype": "Custom Field",
+		"dt": "Job Applicant",
+		"fieldname": "st_section_booking",
+		"label": "Interview & Slot Booking",
+		"fieldtype": "Section Break",
+		"insert_after": "status",
+		"collapsible": 1
+	},
+	{
+		"name": "Job Applicant-booking_token",
+		"doctype": "Custom Field",
+		"dt": "Job Applicant",
+		"fieldname": "booking_token",
+		"label": "Booking Token",
+		"fieldtype": "Data",
+		"insert_after": "st_section_booking",
+		"read_only": 1,
+		"no_copy": 1
+	},
+	{
+		"name": "Job Applicant-booking_token_expiry",
+		"doctype": "Custom Field",
+		"dt": "Job Applicant",
+		"fieldname": "booking_token_expiry",
+		"label": "Booking Token Expiry",
+		"fieldtype": "Datetime",
+		"insert_after": "booking_token",
+		"read_only": 1
+	},
+	{
+		"name": "Job Applicant-talent_pool_tag",
+		"doctype": "Custom Field",
+		"dt": "Job Applicant",
+		"fieldname": "talent_pool_tag",
+		"label": "Talent Pool / Bench Tag",
+		"fieldtype": "Select",
+		"options": "\nShortlisted\nOn Bench\nFuture Pipeline\nRejected",
+		"insert_after": "booking_token_expiry"
+	},
+	{
+		"name": "Job Applicant-interview_rating_summary",
+		"doctype": "Custom Field",
+		"dt": "Job Applicant",
+		"fieldname": "interview_rating_summary",
+		"label": "Interview Rating Summary",
+		"fieldtype": "Data",
+		"insert_after": "talent_pool_tag",
+		"read_only": 1
+	},
+	{
+		"name": "Job Applicant-booked_slot_time",
+		"doctype": "Custom Field",
+		"dt": "Job Applicant",
+		"fieldname": "booked_slot_time",
+		"label": "Booked Slot Time",
+		"fieldtype": "Datetime",
+		"insert_after": "interview_rating_summary",
+		"read_only": 1
+	},
+	{
+		"name": "Job Opening-st_section_automation",
+		"doctype": "Custom Field",
+		"dt": "Job Opening",
+		"fieldname": "st_section_automation",
+		"label": "HR Automation Settings",
+		"fieldtype": "Section Break",
+		"insert_after": "status"
+	},
+	{
+		"name": "Job Opening-interview_duration_mins",
+		"doctype": "Custom Field",
+		"dt": "Job Opening",
+		"fieldname": "interview_duration_mins",
+		"label": "Interview Duration (Mins)",
+		"fieldtype": "Int",
+		"default": "45",
+		"insert_after": "st_section_automation"
+	},
+	{
+		"name": "Job Opening-default_interviewer",
+		"doctype": "Custom Field",
+		"dt": "Job Opening",
+		"fieldname": "default_interviewer",
+		"label": "Default Interviewer",
+		"fieldtype": "Link",
+		"options": "User",
+		"insert_after": "interview_duration_mins"
+	}
+]
