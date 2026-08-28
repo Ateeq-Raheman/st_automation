@@ -2,7 +2,7 @@ import React from 'react';
 
 export function Badge({ variant = 'default', children, className = '' }) {
   const variantStyles = {
-    default: 'bg-slate-800 text-slate-300 border-slate-700',
+    default: 'bg-gray-100 text-gray-700 border-gray-300',
     primary: 'bg-indigo-950/80 text-indigo-300 border-indigo-800/60',
     success: 'bg-emerald-950/80 text-emerald-300 border-emerald-800/60',
     warning: 'bg-amber-950/80 text-amber-300 border-amber-800/60',

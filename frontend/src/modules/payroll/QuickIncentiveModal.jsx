@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Gift, DollarSign, User, Calendar, FileText } from 'lucide-react';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
+import EmployeeSelect from '../../components/EmployeeSelect';
 
 export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitting }) {
   const [formData, setFormData] = useState({
@@ -34,20 +35,16 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1.5">Employee ID or Name *</label>
-          <input
-            type="text"
-            required
-            placeholder="e.g. HR-EMP-00001"
+          <label className="block text-xs font-bold text-gray-700 mb-1.5">Employee *</label>
+          <EmployeeSelect
             value={formData.employee}
             onChange={(e) => setFormData({ ...formData, employee: e.target.value })}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">Incentive Amount (₹) *</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">Incentive Amount (₹) *</label>
             <input
               type="number"
               required
@@ -56,16 +53,16 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
               placeholder="e.g. 5000"
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-indigo-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black font-bold focus:outline-none focus:border-brand-red"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">Bonus Component</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">Bonus Component</label>
             <select
               value={formData.salary_component}
               onChange={(e) => setFormData({ ...formData, salary_component: e.target.value })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"
             >
               <option value="Incentive">Incentive</option>
               <option value="Performance Bonus">Performance Bonus</option>
@@ -77,27 +74,27 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1.5">Payroll Date</label>
+          <label className="block text-xs font-bold text-gray-700 mb-1.5">Payroll Date</label>
           <input
             type="date"
             value={formData.payroll_date}
             onChange={(e) => setFormData({ ...formData, payroll_date: e.target.value })}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-300 mb-1.5">Reason / Description</label>
+          <label className="block text-xs font-bold text-gray-700 mb-1.5">Reason / Description</label>
           <input
             type="text"
             placeholder="e.g. Q3 Sales Target Achievement"
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"
           />
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
           <Button variant="ghost" type="button" onClick={onClose}>
             Cancel
           </Button>

@@ -28,17 +28,17 @@ export function SlideOver({ isOpen, onClose, title, subtitle, children, width = 
 
       <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
         <div 
-          className={`w-screen ${width} transform bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out animate-fade-in`}
+          className={`w-screen ${width} transform bg-white border-l border-gray-200 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out animate-fade-in`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-md">
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">{title}</h2>
-              {subtitle && <p className="text-sm text-slate-400 mt-0.5">{subtitle}</p>}
+              <h2 className="text-xl font-bold text-brand-black tracking-tight">{title}</h2>
+              {subtitle && <p className="text-sm text-brand-grey mt-0.5">{subtitle}</p>}
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+              className="rounded-lg p-2 text-brand-grey hover:bg-gray-100 hover:text-brand-black transition-colors"
             >
               <X className="h-5 w-5" />
             </button>

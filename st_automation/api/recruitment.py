@@ -81,46 +81,33 @@ def get_pipeline(job_opening=None, search=None):
 				if q in (a.applicant_name or "").lower() or q in (a.email_id or "").lower() or q in (a.job_title or "").lower()
 			]
 
-		# Normalize pipeline stages
-		# Stages: Applied -> Shortlisted -> Awaiting Slot Booking -> Interview Scheduled -> Interview Completed -> Selected / On Bench / Rejected
+		# Normalize pipeline stages to standard ERPNext statuses
 		stages = {
-			"Applied": [],
-			"Shortlisted": [],
-			"Awaiting Slot Booking": [],
-			"Interview Scheduled": [],
-			"Interview Completed": [],
-			"Selected": [],
-			"On Bench": [],
+			"Open": [],
+			"Replied": [],
+			"Accepted": [],
+			"Hold": [],
 			"Rejected": []
 		}
 
 		for app in applicants:
-			raw_status = (app.get("status") or "Applied").strip()
+			raw_status = (app.get("status") or "Open").strip()
 			booking_token = app.get("booking_token")
-			booking_token_expiry = app.get("booking_token_expiry")
 			talent_pool = app.get("talent_pool_tag")
 
-			target_stage = "Applied"
+			target_stage = "Open"
 			if raw_status in ["Open", "Applied"]:
-				target_stage = "Applied"
-			elif raw_status == "Shortlisted" and booking_token:
-				target_stage = "Awaiting Slot Booking"
-			elif raw_status in ["Shortlisted"]:
-				target_stage = "Shortlisted"
-			elif raw_status in ["Awaiting Slot Booking"]:
-				target_stage = "Awaiting Slot Booking"
-			elif raw_status in ["Interview Scheduled", "Scheduled"]:
-				target_stage = "Interview Scheduled"
-			elif raw_status in ["Interview Completed", "Under Review", "Hold"]:
-				target_stage = "Interview Completed"
-			elif raw_status in ["Selected", "Accepted"]:
-				target_stage = "Selected"
-			elif raw_status in ["On Bench", "Talent Pool"] or talent_pool == "On Bench":
-				target_stage = "On Bench"
+				target_stage = "Open"
+			elif raw_status in ["Replied", "Shortlisted", "Awaiting Slot Booking", "Interview Scheduled", "Scheduled", "Interview Completed", "Under Review"]:
+				target_stage = "Replied"
+			elif raw_status in ["Accepted", "Selected"]:
+				target_stage = "Accepted"
+			elif raw_status in ["Hold", "On Bench", "Talent Pool"] or talent_pool == "On Bench":
+				target_stage = "Hold"
 			elif raw_status in ["Rejected"]:
 				target_stage = "Rejected"
 			else:
-				target_stage = "Applied"
+				target_stage = "Open"
 
 			app["stage"] = target_stage
 			app["booking_url"] = get_site_booking_url(booking_token) if booking_token else ""
@@ -149,7 +136,7 @@ def shortlist_and_notify(applicant_id, notes=None):
 		token = generate_secure_token(prefix="st_slot_")
 		expiry = add_to_date(now_datetime(), days=3)
 
-		doc.status = "Awaiting Slot Booking"
+		doc.status = "Replied"
 		doc.booking_token = token
 		doc.booking_token_expiry = expiry
 		if notes:
@@ -328,7 +315,7 @@ def book_slot(token, slot_datetime, interviewer=None):
 			frappe.log_error(f"Interview creation note: {int_err}", "st_automation Interview")
 
 		# Update applicant status
-		doc.status = "Interview Scheduled"
+		doc.status = "Replied"
 		doc.booked_slot_time = slot_datetime
 		# Clear token to prevent replay
 		doc.booking_token = None
@@ -371,6 +358,265 @@ def book_slot(token, slot_datetime, interviewer=None):
 		}, message="Interview successfully scheduled!")
 	except Exception as e:
 		return error_response(f"Error booking slot: {str(e)}", e)
+
+
+def generate_ics_content(subject, description, start_time, duration_hours=1):
+	"""Generates an ICS file content for calendar invites."""
+	from datetime import timedelta
+	start_dt = get_datetime(start_time)
+	end_dt = start_dt + timedelta(hours=duration_hours)
+	
+	dtstamp = now_datetime().strftime('%Y%m%dT%H%M%SZ')
+	dtstart = start_dt.strftime('%Y%m%dT%H%M%S')
+	dtend = end_dt.strftime('%Y%m%dT%H%M%S')
+	
+	ics = [
+		"BEGIN:VCALENDAR",
+		"VERSION:2.0",
+		"PRODID:-//Standard Touch//HR Ops//EN",
+		"CALSCALE:GREGORIAN",
+		"METHOD:REQUEST",
+		"BEGIN:VEVENT",
+		f"DTSTAMP:{dtstamp}",
+		f"DTSTART:{dtstart}",
+		f"DTEND:{dtend}",
+		f"SUMMARY:{subject}",
+		f"DESCRIPTION:{description}",
+		"STATUS:CONFIRMED",
+		"SEQUENCE:0",
+		"BEGIN:VALARM",
+		"TRIGGER:-PT15M",
+		"ACTION:DISPLAY",
+		"DESCRIPTION:Reminder",
+		"END:VALARM",
+		"END:VEVENT",
+		"END:VCALENDAR"
+	]
+	return "\\r\\n".join(ics)
+
+@frappe.whitelist(allow_guest=True)
+def submit_interview_feedback():
+    """Endpoint for interviewers to submit feedback via a secure token.
+    Expected GET/POST params:
+        token: secure token generated per interviewer
+        interview: Interview document name
+        feedback: textual feedback (POST)
+        rating: optional numeric rating (POST)
+    """
+    token = frappe.form_dict.get('token')
+    interview_name = frappe.form_dict.get('interview')
+    feedback = frappe.form_dict.get('feedback')
+    rating = frappe.form_dict.get('rating')
+
+    if not token or not interview_name:
+        return error_response('Missing token or interview identifier')
+
+    interview = frappe.get_doc('Interview', interview_name)
+    # feedback_token stored as JSON mapping interviewer -> token
+    token_map = {}
+    try:
+        token_map = json.loads(interview.feedback_token or '{}')
+    except Exception:
+        pass
+    # Find interviewer associated with token
+    interviewer = None
+    for emp, tkn in token_map.items():
+        if tkn == token:
+            interviewer = emp
+            break
+    if not interviewer:
+        return error_response('Invalid or expired feedback token')
+
+    # Record feedback as a comment on the Interview
+    comment_text = f"Feedback from {interviewer}: {feedback}"
+    if rating:
+        comment_text += f" (Rating: {rating})"
+    interview.add_comment('Feedback', comment_text, comment_by=interviewer)
+    interview.save(ignore_permissions=True)
+    frappe.db.commit()
+    return success_response(message='Feedback submitted successfully')
+
+
+@frappe.whitelist()
+def schedule_interview_round(applicant_id, round_number, interviewers, scheduled_time):
+	"""
+	Schedules a specific interview round (1, 2, or 3) for a candidate.
+	Sends calendar invites (.ics) to all selected interviewers.
+	"""
+	ensure_custom_fields_exist()
+	try:
+		if not applicant_id or not round_number or not scheduled_time:
+			return error_response("Applicant ID, round number, and scheduled time are required.")
+
+		if isinstance(interviewers, str):
+			interviewers = json.loads(interviewers)
+
+		if not interviewers:
+			return error_response("At least one interviewer must be selected.")
+
+		doc = frappe.get_doc("Job Applicant", applicant_id)
+
+		# Determine Round Label
+		round_labels = {1: "Round 1 (Initial)", 2: "Round 2 (Technical)", 3: "Round 3 (Final/Managerial)"}
+		round_name = round_labels.get(int(round_number), f"Round {round_number}")
+
+		# Create Interview Record
+		interview_doc = frappe.new_doc("Interview")
+		interview_doc.job_applicant = doc.name
+		
+		# Resolve job_opening safely to avoid LinkValidationError from core ERPNext
+		job_opening_id = doc.job_title
+		if job_opening_id and not frappe.db.exists("Job Opening", job_opening_id):
+			found_job = frappe.db.get_value("Job Opening", {"job_title": job_opening_id})
+			if found_job:
+				job_opening_id = found_job
+			else:
+				# Auto-create the job opening to satisfy standard ERPNext validations
+				# Must have Designation and Company
+				default_company = frappe.defaults.get_user_default("Company") or frappe.db.get_value("Company", {"is_group": 0}, "name")
+				
+				# Auto-create Designation if it doesn't exist
+				if not frappe.db.exists("Designation", job_opening_id):
+					new_des = frappe.new_doc("Designation")
+					new_des.designation_name = job_opening_id
+					new_des.insert(ignore_permissions=True)
+					
+				new_jo = frappe.new_doc("Job Opening")
+				new_jo.job_title = job_opening_id
+				new_jo.designation = job_opening_id
+				new_jo.company = default_company
+				new_jo.status = "Open"
+				new_jo.flags.ignore_permissions = True
+				new_jo.flags.ignore_mandatory = True
+				new_jo.insert(ignore_permissions=True)
+				job_opening_id = new_jo.name
+				
+			# Update the applicant's job_title to point to the valid ID
+			doc.db_set("job_title", job_opening_id)
+
+		if job_opening_id:
+			interview_doc.job_opening = job_opening_id
+			
+		interview_doc.scheduled_on = scheduled_time
+		interview_doc.status = "Pending"
+		
+		# Add Interviewers to child table
+		for emp in interviewers:
+			user_id = frappe.db.get_value("Employee", emp, "user_id")
+			if user_id:
+				interview_doc.append("interview_details", {
+					"interviewer": user_id
+				})
+			else:
+				# Fallback: if no user_id, check if employee has email and find user by email
+				email = frappe.db.get_value("Employee", emp, "company_email") or frappe.db.get_value("Employee", emp, "personal_email")
+				if email and frappe.db.exists("User", email):
+					interview_doc.append("interview_details", {
+						"interviewer": email
+					})
+			
+		# Optional: add a custom field or append to remarks to denote the round
+		interview_doc.flags.ignore_permissions = True
+		interview_doc.flags.ignore_mandatory = True
+		interview_doc.insert(ignore_permissions=True)
+		
+		# Log the round action
+		doc.add_comment("Comment", f"Scheduled {round_name} for {format_datetime(scheduled_time)} with {', '.join(interviewers)}")
+		doc.save(ignore_permissions=True)
+
+		# Fetch emails for all selected interviewers (who are Employees)
+		interviewer_emails = {}  # emp -> email
+		for emp in interviewers:
+			email = frappe.db.get_value("Employee", emp, "company_email") or frappe.db.get_value("Employee", emp, "personal_email")
+			if email:
+				interviewer_emails[emp] = email
+
+		# Generate a unique feedback token per interviewer and store on the interview doc
+		feedback_token_map = {}
+		for emp in interviewers:
+			feedback_token_map[emp] = generate_secure_token(prefix="fb_")
+
+		# Store the feedback token map as JSON on the interview doc (custom field)
+		try:
+			frappe.db.set_value("Interview", interview_doc.name, "feedback_token", json.dumps(feedback_token_map), update_modified=False)
+		except Exception:
+			# If field doesn't exist yet, just log and continue
+			frappe.log_error("feedback_token field not yet on Interview doctype. Please add it as a custom field.", "st_automation")
+
+		# Generate ICS and send emails
+		site_url = frappe.utils.get_url()
+		emails_sent = 0
+		if interviewer_emails:
+			subject = f"Interview Scheduled: {round_name} with {doc.applicant_name}"
+			description = f"Please conduct {round_name} for {doc.applicant_name} ({doc.job_title}).\\nCandidate Email: {doc.email_id}\\nCandidate Phone: {doc.phone_number}"
+			ics_content = generate_ics_content(subject, description, scheduled_time)
+
+			for emp, email in interviewer_emails.items():
+				token = feedback_token_map.get(emp, "")
+				feedback_url = f"{site_url}/interview-feedback?token={token}&interview={interview_doc.name}"
+				emp_name = frappe.db.get_value("Employee", emp, "employee_name") or emp
+
+				message = f"""
+				<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+				  <h2 style="color: #4f46e5; margin-top: 0;">📅 Interview Assigned – {round_name}</h2>
+				  <p>Hi {emp_name},</p>
+				  <p>You have been assigned to conduct an interview with <strong>{doc.applicant_name}</strong> for the position of <strong>{doc.job_title or 'the open role'}</strong>.</p>
+				  <div style="background-color: #f1f5f9; padding: 16px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #4f46e5;">
+				    <p style="margin: 0; font-weight: bold;">🕐 {format_datetime(scheduled_time)}</p>
+				  </div>
+				  <p>After the interview, please click the link below to submit your feedback:</p>
+				  <div style="text-align: center; margin: 24px 0;">
+				    <a href="{feedback_url}" style="background-color: #10b981; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Submit Interview Feedback</a>
+				  </div>
+				  <p style="font-size: 12px; color: #94a3b8;">This feedback link is unique to you. Please do not share it. Your feedback will be recorded in the HR system under your name.</p>
+				  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+				  <p style="font-size: 12px; color: #94a3b8;">Standard Touch HR Operations Team</p>
+				</div>
+				"""
+
+				try:
+					frappe.sendmail(
+						recipients=[email],
+						subject=subject,
+						message=message,
+						attachments=[{
+							"fname": "invite.ics",
+							"fcontent": ics_content.encode("utf-8")
+						}],
+						now=True
+					)
+					emails_sent += 1
+				except Exception as mail_err:
+					frappe.log_error(f"Failed to send interview email to {email}: {mail_err}", "st_automation Email")
+
+		frappe.db.commit()
+		return success_response(message=f"{round_name} scheduled successfully. Calendar invites sent to {len(interviewer_emails)} interviewers.")
+
+	except Exception as e:
+		return error_response(f"Error scheduling round {round_number}: {str(e)}", e)
+
+
+@frappe.whitelist()
+def get_applicant_interviews(applicant_id):
+	"""Fetches all scheduled interviews for a specific applicant."""
+	try:
+		interviews = frappe.get_all(
+			"Interview",
+			filters={"job_applicant": applicant_id},
+			fields=["name", "job_opening", "scheduled_on", "status", "creation"]
+		)
+		
+		# For each interview, we can find the assigned interviewers from Interview Detail
+		for iv in interviews:
+			details = frappe.get_all("Interview Detail", filters={"parent": iv.name}, fields=["interviewer"])
+			iv["interviewers"] = [d.interviewer for d in details]
+			
+		# Sort by scheduled_on descending
+		interviews.sort(key=lambda x: x.scheduled_on or x.creation, reverse=True)
+		
+		return success_response(interviews)
+	except Exception as e:
+		return error_response(f"Failed to fetch interviews: {str(e)}", e)
 
 
 @frappe.whitelist()
@@ -438,7 +684,7 @@ def submit_interview_feedback(interview_id, rating, recommendation, comments, sc
 		applicant_id = interview.job_applicant
 		if applicant_id and frappe.db.exists("Job Applicant", applicant_id):
 			app_doc = frappe.get_doc("Job Applicant", applicant_id)
-			app_doc.status = "Interview Completed"
+			app_doc.status = "Replied"
 			summary = f"Rating: {rating}/5 | Rec: {recommendation} | Notes: {comments}"
 			app_doc.interview_rating_summary = summary
 			app_doc.add_comment("Comment", f"Interview Feedback: {summary}")
@@ -480,7 +726,7 @@ def record_decision(applicant_id, decision, notes=None, salary_offered=None, des
 		doc = frappe.get_doc("Job Applicant", applicant_id)
 
 		if decision == "Select":
-			doc.status = "Selected"
+			doc.status = "Accepted"
 			doc.talent_pool_tag = "Shortlisted"
 			doc.add_comment("Comment", f"Hiring Decision: SELECTED. {notes or ''}")
 			doc.save(ignore_permissions=True)
@@ -504,7 +750,7 @@ def record_decision(applicant_id, decision, notes=None, salary_offered=None, des
 			message = f"{doc.applicant_name} marked as SELECTED and Job Offer drafted!"
 
 		elif decision == "Bench":
-			doc.status = "On Bench"
+			doc.status = "Hold"
 			doc.talent_pool_tag = "On Bench"
 			doc.add_comment("Comment", f"Hiring Decision: ON BENCH / TALENT POOL. {notes or ''}")
 			doc.save(ignore_permissions=True)
@@ -595,7 +841,7 @@ def get_job_openings():
 	try:
 		openings = frappe.get_all(
 			"Job Opening",
-			fields=["name", "job_title", "status", "designation", "department", "no_of_vacancies", "publish_on_website"],
+			fields=["name", "job_title", "status", "designation", "department", "vacancies", "publish"],
 			order_by="creation desc"
 		)
 
@@ -612,9 +858,63 @@ def toggle_job_opening(job_opening_id, publish):
 	"""Toggles publish status of a job opening in 1 click."""
 	try:
 		doc = frappe.get_doc("Job Opening", job_opening_id)
-		doc.publish_on_website = 1 if publish else 0
+		doc.publish = 1 if publish else 0
 		doc.save(ignore_permissions=True)
 		frappe.db.commit()
 		return success_response(message=f"Job Opening status updated!")
 	except Exception as e:
 		return error_response("Error updating job opening", e)
+
+
+@frappe.whitelist()
+def onboard_candidate(applicant_id):
+	"""Converts a Job Applicant into an Employee record in ERPNext."""
+	try:
+		if not frappe.db.exists("Job Applicant", applicant_id):
+			return error_response(f"Applicant {applicant_id} does not exist.")
+
+		app_doc = frappe.get_doc("Job Applicant", applicant_id)
+		if app_doc.status not in ["Selected", "Accepted"]:
+			return error_response("Candidate must be Selected before onboarding.")
+			
+		# Check if Employee already exists for this email
+		existing = frappe.db.get_value("Employee", {"personal_email": app_doc.email_id})
+		if existing:
+			return error_response(f"Employee {existing} already exists with this email.")
+
+		# Create Employee
+		emp = frappe.new_doc("Employee")
+		emp.first_name = app_doc.applicant_name
+		emp.personal_email = app_doc.email_id
+		emp.status = "Active"
+		emp.date_of_joining = nowdate()
+		
+		# Handle Designation Link Field
+		if app_doc.job_title:
+			if frappe.db.exists("Designation", app_doc.job_title):
+				emp.designation = app_doc.job_title
+			else:
+				try:
+					new_desig = frappe.new_doc("Designation")
+					new_desig.designation_name = app_doc.job_title
+					new_desig.insert(ignore_permissions=True)
+					emp.designation = app_doc.job_title
+				except Exception:
+					pass
+		
+		# Need default company
+		company = frappe.db.get_single_value("Global Defaults", "default_company")
+		if not company:
+			company = frappe.get_all("Company")[0].name
+		emp.company = company
+		
+		emp.flags.ignore_mandatory = True
+		emp.insert(ignore_permissions=True)
+		
+		frappe.db.commit()
+		return success_response({
+		    "employee": emp.name,
+		    "applicant_id": applicant_id
+		}, message=f"Successfully onboarded {app_doc.applicant_name} as Employee {emp.name}!")
+	except Exception as e:
+		return error_response(f"Failed to onboard candidate: {str(e)}", e)

@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 min-h-screen selection:bg-indigo-500 selection:text-white;
+    @apply bg-gray-50 text-brand-black min-h-screen selection:bg-red-500 selection:text-brand-black;
   }
 }
 
@@ -24,29 +24,39 @@
   background: rgba(99, 102, 241, 0.8);
 }
 
-/* Glassmorphism helpers */
+/* Glassmorphism helpers for Light Theme */
 .glass-panel {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .glass-card {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .glass-card-hover {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .glass-card-hover:hover {
-  background: rgba(30, 41, 59, 0.8);
-  border-color: rgba(99, 102, 241, 0.35);
+  background: #ffffff;
+  border-color: rgba(220, 38, 38, 0.3);
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 15px -3px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.08), 0 4px 10px -2px rgba(220, 38, 38, 0.1);
+}
+
+/* Hide scrollbar for kanban board but allow scrolling */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Animation keyframes */

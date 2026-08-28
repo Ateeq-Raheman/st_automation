@@ -3,8 +3,8 @@ import React from 'react';
 export function StatCard({ title, value, subtitle, icon: Icon, trend, color = 'indigo', onClick }) {
   const colorMap = {
     indigo: {
-      bg: 'bg-indigo-950/40 border-indigo-800/40 text-indigo-400',
-      glow: 'hover:border-indigo-500/50 hover:shadow-glow',
+      bg: 'bg-indigo-950/40 border-indigo-800/40 text-brand-red',
+      glow: 'hover:border-brand-red/50 hover:shadow-glow',
     },
     emerald: {
       bg: 'bg-emerald-950/40 border-emerald-800/40 text-emerald-400',
@@ -32,7 +32,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, color = 'i
       className={`glass-panel rounded-2xl p-5 border transition-all duration-200 ${currentTheme.glow} ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-brand-grey">{title}</span>
         {Icon && (
           <div className={`p-2 rounded-xl border ${currentTheme.bg}`}>
             <Icon className="h-4 w-4" />
@@ -41,7 +41,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, color = 'i
       </div>
 
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{value}</span>
+        <span className="text-2xl sm:text-3xl font-heading font-bold text-brand-black tracking-tight">{value}</span>
         {trend && (
           <span className="text-xs font-semibold text-emerald-400">
             {trend}
@@ -50,7 +50,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, color = 'i
       </div>
 
       {subtitle && (
-        <p className="mt-1 text-xs text-slate-400 truncate">{subtitle}</p>
+        <p className="mt-1 text-xs text-brand-grey truncate">{subtitle}</p>
       )}
     </div>
   );

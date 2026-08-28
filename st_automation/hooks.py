@@ -12,7 +12,7 @@ app_license = "mit"
 add_to_apps_screen = [
 	{
 		"name": "st_automation",
-		"logo": "/assets/st_automation/logo.png",
+		"logo": "/assets/st_automation/icon.svg",
 		"title": "HR Operations",
 		"route": "/hr-ops",
 	}

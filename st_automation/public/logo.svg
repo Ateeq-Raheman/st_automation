@@ -1,0 +1,14 @@
+<svg width="600" height="150" viewBox="0 0 600 150" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&amp;family=Montserrat:wght@500&amp;display=swap');
+      .standard { font-family: 'Poppins', sans-serif; font-size: 64px; font-weight: 700; fill: #ED1D24; letter-spacing: -1px; }
+      .touch { font-family: 'Poppins', sans-serif; font-size: 64px; font-weight: 700; fill: #000000; letter-spacing: -1px; }
+      .solutions { font-family: 'Montserrat', sans-serif; font-size: 24px; font-weight: 500; fill: #818285; font-style: italic; letter-spacing: 0.5px; }
+    </style>
+  </defs>
+  <text x="10" y="80">
+    <tspan class="standard">Standard</tspan><tspan class="touch">Touch</tspan>
+  </text>
+  <text x="245" y="115" class="solutions">e-Solutions</text>
+</svg>

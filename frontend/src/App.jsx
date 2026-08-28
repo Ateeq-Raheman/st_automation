@@ -28,6 +28,7 @@ import { SalarySlipsView } from './modules/payroll/SalarySlipsView';
 // Diagnostics & Public Candidate
 import { DiagnosticsView } from './modules/diagnostics/DiagnosticsView';
 import { CandidateSlotBooking } from './modules/candidate/CandidateSlotBooking';
+import InterviewFeedback from './pages/InterviewFeedback';
 
 export function AppContent() {
   const { addToast } = useToast();
@@ -36,6 +37,7 @@ export function AppContent() {
   const [activeTab, setActiveTab] = useState('recruitment-pipeline');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isPublicCandidateMode, setIsPublicCandidateMode] = useState(false);
+  const [isInterviewFeedbackMode, setIsInterviewFeedbackMode] = useState(false);
 
   // User & Company Context
   const [userProfile, setUserProfile] = useState(null);
@@ -73,11 +75,13 @@ export function AppContent() {
   const [activeInterviewForFeedback, setActiveInterviewForFeedback] = useState(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
 
-  // Detect Public Candidate Route vs Staff Route
+  // Detect Public Candidate Route or Interview Feedback Route
   useEffect(() => {
     const checkRoute = () => {
       const isBooking = window.location.hash.includes('book-slot') || window.location.pathname.includes('book-slot');
+      const isFeedback = window.location.pathname.includes('interview-feedback') || window.location.search.includes('token=');
       setIsPublicCandidateMode(isBooking);
+      setIsInterviewFeedbackMode(isFeedback);
     };
     checkRoute();
     window.addEventListener('hashchange', checkRoute);
@@ -92,6 +96,14 @@ export function AppContent() {
         setUserProfile(res.data);
         if (res.data?.default_company) {
           setSelectedCompany(res.data.default_company);
+        }
+        
+        // Default tab logic based on roles
+        if (res.data && !res.data.is_recruiter && !res.data.is_interviewer && res.data.is_employee && !res.data.is_hr_admin) {
+          setActiveTab('salary-slips');
+        } else if (activeTab === 'salary-slips' && !res.data.is_hr_admin && !res.data.is_employee) {
+          // Fallback if somehow invalid tab
+          setActiveTab('recruitment-pipeline');
         }
       } catch (e) {
         console.error('Failed to load user profile', e);
@@ -300,8 +312,13 @@ export function AppContent() {
     return <CandidateSlotBooking />;
   }
 
+  // If interviewer clicks their feedback link (token in URL)
+  if (isInterviewFeedbackMode) {
+    return <InterviewFeedback />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex">
+    <div className="min-h-screen bg-gray-50 text-brand-black flex">
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
@@ -383,44 +400,6 @@ export function AppContent() {
               onExecutePayroll={handleExecutePayroll}
               onViewSalarySlips={() => setActiveTab('salary-slips')}
             />
-          )}
-
-          {activeTab === 'incentives' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-black text-white tracking-tight">Incentives & Bonuses</h2>
-                  <p className="text-sm text-slate-400">Manage one-time bonuses and multi-employee performance rewards.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setIsBulkIncentiveOpen(true)}
-                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs"
-                  >
-                    Bulk Spreadsheet Entry
-                  </button>
-                  <button
-                    onClick={() => setIsQuickIncentiveOpen(true)}
-                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30"
-                  >
-                    + Quick Add Incentive
-                  </button>
-                </div>
-              </div>
-              <PayrollDashboard
-                summary={payrollSummary}
-                isLoading={isPayrollLoading}
-                month={month}
-                year={year}
-                setMonth={setMonth}
-                setYear={setYear}
-                onRunPayroll={() => setActiveTab('run-payroll')}
-                onQuickIncentive={() => setIsQuickIncentiveOpen(true)}
-                onBulkIncentive={() => setIsBulkIncentiveOpen(true)}
-                onNewLoan={() => setIsLoanWizardOpen(true)}
-                onViewSalarySlips={() => setActiveTab('salary-slips')}
-              />
-            </div>
           )}
 
           {activeTab === 'loans' && (

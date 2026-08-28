@@ -297,10 +297,17 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 			company_doc.save(ignore_permissions=True)
 			frappe.db.commit()
 
-		# Auto-detect or use default Loan Product
 		if not loan_product:
 			products = frappe.get_all("Loan Product", limit=1, pluck="name")
 			loan_product = products[0] if products else None
+			
+		# Ensure the Loan Product is explicitly a Term Loan (required for Repay From Salary)
+		if loan_product:
+			product_doc = frappe.get_doc("Loan Product", loan_product)
+			if not product_doc.is_term_loan:
+				product_doc.is_term_loan = 1
+				product_doc.flags.ignore_permissions = True
+				product_doc.save()
 
 		if not monthly_repayment_amount:
 			monthly_repayment_amount = round(amt / tenure, 2)
@@ -313,6 +320,8 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 		loan_doc.loan_amount = amt
 		loan_doc.repayment_periods = tenure
 		loan_doc.monthly_repayment_amount = safe_float(monthly_repayment_amount)
+		loan_doc.is_term_loan = 1
+		loan_doc.repayment_start_date = frappe.utils.today()
 		# Crucial: Moratorium tenure must be 0 to avoid delayed deductions
 		loan_doc.moratorium_tenure = moratorium
 		if hasattr(loan_doc, "repay_from_salary"):
@@ -320,6 +329,26 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 
 		if loan_product:
 			loan_doc.loan_product = loan_product
+
+		# Fetch fallback accounts
+		payment_account = frappe.db.get_value("Account", {"company": company, "account_type": "Cash"})
+		if not payment_account:
+			payment_account = frappe.db.get_value("Account", {"company": company, "root_type": "Asset", "is_group": 0})
+			
+		loan_account = frappe.db.get_value("Account", {"company": company, "account_type": "Receivable"})
+		if not loan_account:
+			loan_account = frappe.db.get_value("Account", {"company": company, "root_type": "Asset", "is_group": 0})
+		
+		loan_doc.payment_account = payment_account
+		loan_doc.loan_account = loan_account
+		
+		# Income accounts
+		income_account = frappe.db.get_value("Account", {"company": company, "root_type": "Income", "is_group": 0})
+		if not income_account:
+			income_account = frappe.db.get_value("Account", {"company": company, "is_group": 0})
+		
+		loan_doc.interest_income_account = income_account
+		loan_doc.penalty_income_account = income_account
 
 		loan_doc.posting_date = nowdate()
 		loan_doc.flags.ignore_permissions = True
@@ -338,6 +367,7 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 				disbursement.company = company
 				disbursement.disbursed_amount = amt
 				disbursement.disbursement_date = nowdate()
+				disbursement.payment_account = payment_account
 				disbursement.flags.ignore_permissions = True
 				disbursement.flags.ignore_mandatory = True
 				disbursement.insert(ignore_permissions=True)
@@ -375,13 +405,79 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 		if not start_date or not end_date:
 			return error_response("Start date and end date are required.")
 
+		# Self-healing: Ensure company has a default payroll payable account
+		company_doc = frappe.get_doc("Company", company)
+		if not company_doc.default_payroll_payable_account:
+			# Look for existing payable account
+			payable_acc = frappe.db.get_value("Account", {"account_name": ["like", "%Payroll Payable%"], "company": company, "is_group": 0})
+			if not payable_acc:
+				# Attempt to create it under Current Liabilities
+				liabilities = frappe.db.get_value("Account", {"account_type": "Current Liabilities", "company": company, "is_group": 1})
+				if not liabilities:
+					liabilities = frappe.db.get_value("Account", {"root_type": "Liability", "company": company, "is_group": 1})
+				
+				if liabilities:
+					try:
+						acc = frappe.new_doc("Account")
+						acc.account_name = "Payroll Payable"
+						acc.parent_account = liabilities
+						acc.company = company
+						acc.is_group = 0
+						acc.account_type = "Payable"
+						acc.insert(ignore_permissions=True)
+						payable_acc = acc.name
+					except Exception as e:
+						frappe.log_error(f"Failed to create Payroll Payable Account: {e}")
+			
+			if payable_acc:
+				company_doc.default_payroll_payable_account = payable_acc
+				company_doc.save(ignore_permissions=True)
+				frappe.db.commit()
+
+		# Check if all active employees are already processed
+		active_employees = frappe.db.count("Employee", {"status": "Active", "company": company})
+		processed_employees_count = frappe.db.count("Salary Slip", {
+			"company": company,
+			"start_date": [">=", start_date],
+			"end_date": ["<=", end_date],
+			"docstatus": ["!=", 2]
+		})
+
+		if active_employees > 0 and processed_employees_count >= active_employees:
+			# If there is a draft payroll entry, just return it so they can resume
+			existing_pe = frappe.db.get_value("Payroll Entry", {
+				"company": company,
+				"start_date": start_date,
+				"end_date": end_date,
+				"docstatus": 0
+			})
+			if existing_pe:
+				# Return existing draft stats
+				slips = frappe.get_all("Salary Slip", filters={"payroll_entry": existing_pe}, fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name"])
+				return success_response({
+					"payroll_entry": existing_pe,
+					"total_processed": len(slips),
+					"total_gross": sum([safe_float(s.gross_pay) for s in slips]),
+					"total_deductions": sum([safe_float(s.total_deduction) for s in slips]),
+					"total_net_payout": sum([safe_float(s.net_pay) for s in slips]),
+					"successful": slips,
+					"failed": []
+				}, message="Resumed existing Draft Payroll")
+			else:
+				return error_response(f"Payroll is already fully processed for all {active_employees} employees for {company} between {start_date} and {end_date}.")
+
 		# Create Payroll Entry
+		if not company_doc.default_payroll_payable_account:
+			return error_response(f"Default Payroll Payable Account is not set for Company {company}. Please set it manually in Company master.")
+			
 		payroll_entry = frappe.new_doc("Payroll Entry")
 		payroll_entry.company = company
 		payroll_entry.start_date = start_date
 		payroll_entry.end_date = end_date
 		payroll_entry.payroll_frequency = "Monthly"
 		payroll_entry.posting_date = end_date
+		payroll_entry.exchange_rate = 1.0
+		payroll_entry.payroll_payable_account = company_doc.default_payroll_payable_account
 		if cost_center:
 			payroll_entry.cost_center = cost_center
 
@@ -412,7 +508,7 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 			filters={"payroll_entry": payroll_entry.name}
 		)
 
-		# Submit Salary Slips
+		# DO NOT SUBMIT Salary Slips or Payroll Entry yet (Draft mode)
 		success_slips = []
 		failed_slips = []
 		total_payout = 0.0
@@ -420,35 +516,17 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 		total_deductions = 0.0
 
 		for slip in generated_slips:
-			try:
-				slip_doc = frappe.get_doc("Salary Slip", slip.name)
-				if slip_doc.docstatus == 0:
-					slip_doc.submit()
-				success_slips.append({
-					"salary_slip": slip.name,
-					"employee": slip.employee,
-					"employee_name": slip.employee_name,
-					"gross_pay": safe_float(slip.gross_pay),
-					"total_deduction": safe_float(slip.total_deduction),
-					"net_pay": safe_float(slip.net_pay)
-				})
-				total_gross += safe_float(slip.gross_pay)
-				total_deductions += safe_float(slip.total_deduction)
-				total_payout += safe_float(slip.net_pay)
-			except Exception as sub_err:
-				failed_slips.append({
-					"salary_slip": slip.name,
-					"employee": slip.employee,
-					"employee_name": slip.employee_name,
-					"error": str(sub_err)
-				})
-
-		# Submit Payroll Entry itself
-		try:
-			payroll_entry.docstatus = 1
-			payroll_entry.save(ignore_permissions=True)
-		except Exception:
-			pass
+			success_slips.append({
+				"salary_slip": slip.name,
+				"employee": slip.employee,
+				"employee_name": slip.employee_name,
+				"gross_pay": safe_float(slip.gross_pay),
+				"total_deduction": safe_float(slip.total_deduction),
+				"net_pay": safe_float(slip.net_pay)
+			})
+			total_gross += safe_float(slip.gross_pay)
+			total_deductions += safe_float(slip.total_deduction)
+			total_payout += safe_float(slip.net_pay)
 
 		frappe.db.commit()
 
@@ -460,9 +538,49 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 			"total_net_payout": total_payout,
 			"successful": success_slips,
 			"failed": failed_slips
-		}, message=f"Payroll processed! Generated and submitted {len(success_slips)} salary slips.")
+		}, message=f"Draft Payroll generated! Review {len(success_slips)} salary slips before submitting.")
 	except Exception as e:
 		return error_response(f"Error executing payroll: {str(e)}", e)
+
+@frappe.whitelist()
+def submit_payroll(payroll_entry_id):
+	"""
+	Submits the Draft Payroll Entry and all its associated Salary Slips.
+	"""
+	try:
+		if not frappe.db.exists("Payroll Entry", payroll_entry_id):
+			return error_response(f"Payroll Entry {payroll_entry_id} not found.")
+
+		payroll_entry = frappe.get_doc("Payroll Entry", payroll_entry_id)
+		
+		if payroll_entry.docstatus != 0:
+			return error_response(f"Payroll Entry {payroll_entry_id} is already submitted or cancelled.")
+
+		# Fetch all associated draft salary slips
+		draft_slips = frappe.get_all(
+			"Salary Slip",
+			filters={"payroll_entry": payroll_entry.name, "docstatus": 0},
+			pluck="name"
+		)
+
+		# Submit Salary Slips
+		frappe.flags.mute_emails = True
+		for slip_name in draft_slips:
+			try:
+				slip_doc = frappe.get_doc("Salary Slip", slip_name)
+				slip_doc.submit()
+			except Exception as e:
+				frappe.log_error(f"Failed to submit Salary Slip {slip_name}: {e}", "st_automation Payroll Submit")
+		frappe.flags.mute_emails = False
+
+		# Submit Payroll Entry
+		payroll_entry.submit()
+		
+		frappe.db.commit()
+		return success_response(message=f"Payroll {payroll_entry.name} submitted successfully! {len(draft_slips)} slips processed.")
+
+	except Exception as e:
+		return error_response(f"Error submitting payroll: {str(e)}", e)
 
 
 @frappe.whitelist()
@@ -486,6 +604,21 @@ def get_salary_slips_summary(company=None, month=None, year=None, employee=None)
 		filters["start_date"] = [">=", start_date]
 		filters["end_date"] = ["<=", end_date]
 
+		# Role-based filtering: if not Administrator and not HR Manager, enforce their own employee record
+		user = frappe.session.user
+		if user != "Administrator" and "HR Manager" not in frappe.get_roles(user):
+			emp_id = frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "name")
+			if emp_id:
+				filters["employee"] = emp_id
+			else:
+				# No active employee linked to user, return empty list safely
+				return success_response({
+					"month": m,
+					"year": y,
+					"slips": [],
+					"count": 0
+				})
+
 		slips = frappe.get_all(
 			"Salary Slip",
 			fields=[
@@ -498,8 +631,10 @@ def get_salary_slips_summary(company=None, month=None, year=None, employee=None)
 			limit=200
 		)
 
+		import urllib.parse
 		for s in slips:
-			s["pdf_url"] = f"/api/method/frappe.utils.print_format.download_pdf?doctype=Salary+Slip&name={s.name}&format=Standard"
+			safe_name = urllib.parse.quote(s.name)
+			s["pdf_url"] = f"/printview?doctype=Salary+Slip&name={safe_name}"
 
 		return success_response({
 			"month": m,
@@ -509,3 +644,72 @@ def get_salary_slips_summary(company=None, month=None, year=None, employee=None)
 		})
 	except Exception as e:
 		return error_response("Error loading salary slips", e)
+
+@frappe.whitelist()
+def get_salary_structures(company=None):
+	"""
+	Returns all active (submitted) Salary Structures for a company.
+	Safe alternative to frappe.client.get_list for React components.
+	"""
+	filters = {"is_active": "Yes", "docstatus": 1}
+	if company:
+		filters["company"] = company
+
+	structures = frappe.get_all(
+		"Salary Structure",
+		filters=filters,
+		fields=["name"],
+		order_by="name asc"
+	)
+	# Also include draft structures so HR can see all
+	if not structures:
+		structures = frappe.get_all(
+			"Salary Structure",
+			filters={"company": company} if company else {},
+			fields=["name"],
+			order_by="name asc"
+		)
+	return success_response(structures)
+
+
+@frappe.whitelist()
+def get_active_employees(company=None):
+	"""
+	Returns a list of all active employees.
+	Safe alternative to frappe.client.get_list for React components.
+	"""
+	filters = {"status": "Active"}
+	if company:
+		filters["company"] = company
+		
+	employees = frappe.get_all(
+		"Employee", 
+		filters=filters,
+		fields=["name", "employee_name"],
+		order_by="employee_name asc"
+	)
+	return success_response(employees)
+
+
+@frappe.whitelist()
+def assign_salary_structure(employee, salary_structure, from_date, company):
+	"""
+	Quickly assigns a salary structure to an employee.
+	"""
+	try:
+		if not employee or not salary_structure or not from_date or not company:
+			return error_response("Missing required fields")
+			
+		assignment = frappe.new_doc("Salary Structure Assignment")
+		assignment.employee = employee
+		assignment.salary_structure = salary_structure
+		assignment.from_date = from_date
+		assignment.company = company
+		assignment.flags.ignore_permissions = True
+		assignment.insert(ignore_permissions=True)
+		assignment.submit()
+		
+		frappe.db.commit()
+		return success_response({"name": assignment.name}, message="Salary Structure assigned successfully!")
+	except Exception as e:
+		return error_response(f"Failed to assign Salary Structure: {str(e)}", e)

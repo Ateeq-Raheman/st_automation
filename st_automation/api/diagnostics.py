@@ -33,7 +33,10 @@ def check_system_health(company=None):
 		has_loan_accrual = False
 		if company:
 			c_doc = frappe.get_doc("Company", company)
-			has_loan_accrual = bool(getattr(c_doc, "loan_accrual_frequency", None))
+			if not hasattr(c_doc, "loan_accrual_frequency"):
+				has_loan_accrual = True # V15 compatibility
+			else:
+				has_loan_accrual = bool(getattr(c_doc, "loan_accrual_frequency", None))
 
 		checks.append({
 			"id": "loan_accrual",
@@ -120,7 +123,10 @@ def auto_fix_issue(issue_id, company=None):
 			setup_custom_fields()
 			return success_response(message="Custom fields created and synced successfully!")
 
-		elif issue_id == "loan_accrual":
+		if not company:
+			company = frappe.defaults.get_user_default("company") or frappe.db.get_single_value("Global Defaults", "default_company")
+			
+		if issue_id == "loan_accrual":
 			if company:
 				c_doc = frappe.get_doc("Company", company)
 				if hasattr(c_doc, "loan_accrual_frequency"):
@@ -128,15 +134,27 @@ def auto_fix_issue(issue_id, company=None):
 					c_doc.save(ignore_permissions=True)
 					frappe.db.commit()
 					return success_response(message=f"Loan Accrual Frequency set to Monthly on {company}!")
-			return error_response("Could not find Company to update.")
+				else:
+					return success_response(message="Loan Accrual Frequency not required in this version.")
+			return error_response(f"Could not update Company {company}.")
 
 		elif issue_id == "loan_product":
 			if frappe.db.exists("DocType", "Loan Product") and not frappe.db.exists("Loan Product", "Salary Advance"):
 				lp = frappe.new_doc("Loan Product")
+				lp.product_code = "SA-001"
 				lp.product_name = "Salary Advance"
 				lp.rate_of_interest = 0.0
 				lp.max_loan_amount = 500000
 				lp.repayment_method = "Repay Over Number of Periods"
+				lp.company = company
+				lp.loan_account = frappe.db.get_value("Account", {"company": company, "account_type": "Receivable"})
+				lp.payment_account = frappe.db.get_value("Account", {"company": company, "account_type": "Cash"})
+				
+				# Income accounts (Crucial to prevent 'None' overwrites during Loan validation)
+				income = frappe.db.get_value("Account", {"company": company, "root_type": "Income", "is_group": 0})
+				lp.interest_income_account = income
+				lp.penalty_income_account = income
+				
 				lp.flags.ignore_permissions = True
 				lp.flags.ignore_mandatory = True
 				lp.insert(ignore_permissions=True)

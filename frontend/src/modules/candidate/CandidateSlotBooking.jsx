@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar, Clock, CheckCircle2, AlertCircle, 
-  Sparkles, ShieldCheck, Download, ChevronRight, User
+  Sparkles, ShieldCheck, Download, ChevronRight, User, ChevronLeft
 } from 'lucide-react';
 import { recruitmentApi } from '../../api/recruitmentApi';
 import { Button } from '../../components/common/Button';
@@ -37,6 +37,34 @@ export function CandidateSlotBooking() {
   }, []);
 
   const loadSlots = async (tok) => {
+    if (tok === 'demo_token') {
+      setSlotData({
+        applicant_name: 'John Doe (Demo Viewer)',
+        job_title: 'Senior Software Engineer',
+        days: [
+          {
+            date: '2026-08-28',
+            date_formatted: 'Aug 28, Friday',
+            slots: [
+              { time_label: '10:00 AM', datetime: '2026-08-28 10:00:00' },
+              { time_label: '11:00 AM', datetime: '2026-08-28 11:00:00' },
+              { time_label: '02:00 PM', datetime: '2026-08-28 14:00:00' },
+            ]
+          },
+          {
+            date: '2026-08-29',
+            date_formatted: 'Aug 29, Saturday',
+            slots: [
+              { time_label: '09:00 AM', datetime: '2026-08-29 09:00:00' },
+              { time_label: '01:00 PM', datetime: '2026-08-29 13:00:00' },
+            ]
+          }
+        ]
+      });
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
@@ -58,6 +86,12 @@ export function CandidateSlotBooking() {
 
   const handleConfirmBooking = async () => {
     if (!selectedSlot || !token) return;
+    
+    if (token === 'demo_token') {
+      setError('This is a preview of the candidate experience. Real bookings must be made via the unique link sent to candidates.');
+      return;
+    }
+    
     setIsBooking(true);
     try {
       const res = await recruitmentApi.bookSlot(token, selectedSlot.datetime);
@@ -93,32 +127,40 @@ END:VCALENDAR`;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 text-brand-black flex items-center justify-center p-4">
         <div className="text-center space-y-4">
-          <div className="w-12 h-12 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin mx-auto" />
-          <p className="text-sm font-semibold text-slate-400">Loading interview calendar...</p>
+          <div className="w-12 h-12 rounded-full border-4 border-brand-red border-t-transparent animate-spin mx-auto" />
+          <p className="text-sm font-semibold text-brand-grey">Loading interview calendar...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 text-brand-black flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-xl w-full mx-auto space-y-6">
+        
+        {/* Internal Navigation (only useful when previewing in admin app) */}
+        <div className="flex justify-start">
+           <Button variant="outline" size="sm" onClick={() => window.location.href = '/hr-ops'} className="gap-1.5 border-gray-200 text-brand-grey hover:text-brand-black bg-white rounded-xl shadow-sm">
+             <ChevronLeft className="h-4 w-4" /> Back to Dashboard
+           </Button>
+        </div>
+
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-600/30 mx-auto">
-            <Sparkles className="h-6 w-6 text-white" />
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-brand-red to-red-700 flex items-center justify-center shadow-lg shadow-glow-red mx-auto">
+            <Sparkles className="h-6 w-6 text-brand-black" />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Standard Touch</h1>
-          <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Candidate Interview Scheduler</p>
+          <h1 className="text-2xl font-heading font-bold text-brand-black tracking-tight">Standard Touch</h1>
+          <p className="text-xs font-bold text-brand-red uppercase tracking-widest">Candidate Interview Scheduler</p>
         </div>
 
         {/* Error Card */}
         {error && (
           <div className="glass-panel border-rose-500/50 bg-rose-950/30 rounded-2xl p-5 text-center space-y-3">
             <AlertCircle className="h-8 w-8 text-rose-400 mx-auto" />
-            <h3 className="text-base font-bold text-white">Booking Link Notice</h3>
+            <h3 className="text-base font-bold text-brand-black">Booking Link Notice</h3>
             <p className="text-xs text-rose-200">{error}</p>
           </div>
         )}
@@ -131,15 +173,15 @@ END:VCALENDAR`;
             </div>
 
             <div className="space-y-2">
-              <h2 className="text-2xl font-black text-white">Interview Confirmed!</h2>
+              <h2 className="text-2xl font-heading font-bold text-brand-black">Interview Confirmed!</h2>
               <p className="text-xs text-emerald-300">
-                We're excited to speak with you, <span className="font-bold text-white">{bookingSuccess.applicant_name}</span>.
+                We're excited to speak with you, <span className="font-bold text-brand-black">{bookingSuccess.applicant_name}</span>.
               </p>
             </div>
 
-            <div className="bg-slate-950/80 rounded-2xl p-5 border border-slate-800 space-y-2 text-left">
-              <div className="text-xs text-slate-400">Position: <strong className="text-white">{bookingSuccess.job_title}</strong></div>
-              <div className="text-xs text-slate-400">Scheduled Time: <strong className="text-indigo-400">{bookingSuccess.formatted_time || bookingSuccess.slot_datetime}</strong></div>
+            <div className="bg-gray-50/80 rounded-2xl p-5 border border-gray-200 space-y-2 text-left">
+              <div className="text-xs text-brand-grey">Position: <strong className="text-brand-black">{bookingSuccess.job_title}</strong></div>
+              <div className="text-xs text-brand-grey">Scheduled Time: <strong className="text-brand-red">{bookingSuccess.formatted_time || bookingSuccess.slot_datetime}</strong></div>
             </div>
 
             <Button
@@ -155,18 +197,18 @@ END:VCALENDAR`;
           /* Slot Selection Wizard */
           <div className="glass-panel rounded-3xl p-6 sm:p-8 border space-y-6 shadow-2xl">
             {/* Candidate Welcome Banner */}
-            <div className="border-b border-slate-800 pb-4">
-              <h2 className="text-xl font-bold text-white">
+            <div className="border-b border-gray-200 pb-4">
+              <h2 className="text-xl font-bold text-brand-black">
                 Hi {slotData.applicant_name}!
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-brand-grey mt-1">
                 Please pick a convenient time slot for your interview for <strong>{slotData.job_title}</strong>.
               </p>
             </div>
 
             {/* Date Tabs */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-brand-grey mb-2">
                 1. Select Date
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -180,8 +222,8 @@ END:VCALENDAR`;
                     }}
                     className={`p-3 rounded-2xl border text-center transition-all ${
                       selectedDateIndex === idx
-                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/30'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-850'
+                        ? 'bg-brand-red border-brand-red text-brand-black shadow-lg shadow-glow-red'
+                        : 'bg-white border-gray-200 text-brand-grey hover:text-brand-black hover:bg-gray-50'
                     }`}
                   >
                     <span className="text-xs font-bold block">{day.date_formatted.split(',')[0]}</span>
@@ -193,7 +235,7 @@ END:VCALENDAR`;
 
             {/* Time Slot Buttons */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-brand-grey mb-2">
                 2. Select Available Time
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -205,10 +247,10 @@ END:VCALENDAR`;
                       key={slot.datetime}
                       type="button"
                       onClick={() => setSelectedSlot(slot)}
-                      className={`py-3 px-2 rounded-xl border text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
+                      className={`py-3 px-2 rounded-xl border text-xs font-heading font-bold transition-all flex items-center justify-center gap-1.5 ${
                         isSelected
-                          ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/30 scale-[1.02]'
-                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
+                          ? 'bg-emerald-600 border-emerald-500 text-brand-black shadow-lg shadow-emerald-600/30 scale-[1.02]'
+                          : 'bg-white border-gray-200 text-gray-700 hover:text-brand-black hover:border-gray-300'
                       }`}
                     >
                       <Clock className="h-3.5 w-3.5" />
@@ -220,7 +262,7 @@ END:VCALENDAR`;
             </div>
 
             {/* Confirm Button */}
-            <div className="pt-4 border-t border-slate-800">
+            <div className="pt-4 border-t border-gray-200">
               <Button
                 variant="success"
                 size="lg"

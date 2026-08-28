@@ -44,4 +44,7 @@ export const recruitmentApi = {
   
   toggleJobOpening: (jobOpeningId, publish) => 
     callApi('st_automation.api.recruitment.toggle_job_opening', { job_opening_id: jobOpeningId, publish }),
+
+  onboardCandidate: (applicantId) => 
+    callApi('st_automation.api.recruitment.onboard_candidate', { applicant_id: applicantId }),
 };

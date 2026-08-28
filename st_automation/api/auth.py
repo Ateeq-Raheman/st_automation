@@ -30,6 +30,8 @@ def get_current_user_profile():
 		is_recruiter = is_system_manager or is_hr_admin or "Recruitment Manager" in roles or "HR User" in roles
 		is_interviewer = is_system_manager or is_recruiter or "Interviewer" in roles or "Employee" in roles
 
+		is_employee = "Employee" in roles or bool(frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "name"))
+
 		# Default company if available
 		default_company = frappe.defaults.get_user_default("company") or frappe.db.get_single_value("Global Defaults", "default_company")
 		if not default_company:
@@ -49,6 +51,7 @@ def get_current_user_profile():
 			"is_recruiter": is_recruiter,
 			"is_interviewer": is_interviewer,
 			"is_system_manager": is_system_manager,
+			"is_employee": is_employee,
 			"default_company": default_company,
 			"companies": companies,
 			"csrf_token": frappe.sessions.get_csrf_token(),

@@ -12,13 +12,13 @@ export function Button({
   ...props 
 }) {
   const variantStyles = {
-    primary: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 active:scale-[0.98] border border-indigo-500/30',
-    success: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 active:scale-[0.98] border border-emerald-500/30',
-    danger: 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:scale-[0.98] border border-rose-500/30',
-    warning: 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/20 active:scale-[0.98] border border-amber-500/30',
-    secondary: 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-[0.98]',
-    ghost: 'text-slate-400 hover:text-white hover:bg-slate-800/60',
-    outline: 'border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white bg-transparent',
+    primary: 'bg-brand-red hover:bg-red-500 text-white shadow-lg shadow-glow-red active:scale-[0.98] border border-brand-red/30',
+    success: 'bg-emerald-600 hover:bg-emerald-500 text-brand-black shadow-lg shadow-emerald-600/20 active:scale-[0.98] border border-emerald-500/30',
+    danger: 'bg-rose-600 hover:bg-rose-500 text-brand-black shadow-lg shadow-rose-600/20 active:scale-[0.98] border border-rose-500/30',
+    warning: 'bg-amber-600 hover:bg-amber-500 text-brand-black shadow-lg shadow-amber-600/20 active:scale-[0.98] border border-amber-500/30',
+    secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 active:scale-[0.98]',
+    ghost: 'text-brand-grey hover:text-brand-black hover:bg-gray-100/60',
+    outline: 'border border-gray-300 hover:border-slate-500 text-gray-700 hover:text-brand-black bg-transparent',
   };
 
   const sizeStyles = {

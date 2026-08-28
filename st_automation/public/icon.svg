@@ -1,0 +1,7 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="256" height="256" rx="64" fill="#FFFFFF"/>
+<rect x="2" y="2" width="252" height="252" rx="62" fill="#FFFFFF" stroke="#ED1D24" stroke-width="4"/>
+<text x="128" y="160" font-family="Arial, sans-serif" font-weight="bold" font-size="96" fill="#000000" text-anchor="middle" letter-spacing="-4">
+<tspan fill="#ED1D24">S</tspan><tspan fill="#000000">T</tspan>
+</text>
+</svg>

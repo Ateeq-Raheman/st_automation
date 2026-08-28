@@ -6,14 +6,17 @@
 	<title>Standard Touch — HR Operations</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="/assets/st_automation/frontend/index.css" />
+	<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/assets/st_automation/frontend/index.css?v={{ frappe.utils.now() }}" />
 	<script>
-		window.__ST_BOOT__ = {{ boot | tojson }};
+		window.ST_BOOT = {
+			"user": "{{ frappe.session.user }}",
+			"csrf_token": "{{ frappe.session.csrf_token }}"
+		};
 	</script>
 </head>
 <body class="bg-slate-900 text-slate-100 antialiased font-sans">
 	<div id="root"></div>
-	<script type="module" src="/assets/st_automation/frontend/index.js"></script>
+	<script type="module" src="/assets/st_automation/frontend/index.js?v={{ frappe.utils.now() }}"></script>
 </body>
 </html>

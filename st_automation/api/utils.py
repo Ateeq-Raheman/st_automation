@@ -15,7 +15,8 @@ def success_response(data=None, message=None):
 def error_response(message, exc=None):
 	"""Standardized error response wrapper."""
 	if exc:
-		frappe.log_error(f"{message}: {str(exc)}", "st_automation API")
+		error_title = f"{message}: {str(exc)}"[:135]
+		frappe.log_error(title=error_title, message=str(exc))
 	return {
 		"status": "error",
 		"message": str(message),

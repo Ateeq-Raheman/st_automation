@@ -4,7 +4,7 @@
 
 function getCsrfToken() {
   if (typeof window !== 'undefined') {
-    if (window.__ST_BOOT__?.csrf_token) return window.__ST_BOOT__.csrf_token;
+    if (window.ST_BOOT?.csrf_token) return window.ST_BOOT.csrf_token;
     if (window.frappe?.csrf_token) return window.frappe.csrf_token;
     // Check cookies
     const match = document.cookie.match(/csrf_token=([^;]+)/);

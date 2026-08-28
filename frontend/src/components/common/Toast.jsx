@@ -28,28 +28,28 @@ export function ToastProvider({ children }) {
           const typeConfig = {
             success: {
               icon: CheckCircle2,
-              bg: 'bg-slate-900 border-emerald-500/50 text-emerald-400',
+              bg: 'bg-white border-emerald-500/50 text-emerald-400',
               iconColor: 'text-emerald-400',
             },
             error: {
               icon: XCircle,
-              bg: 'bg-slate-900 border-rose-500/50 text-rose-400',
+              bg: 'bg-white border-rose-500/50 text-rose-400',
               iconColor: 'text-rose-400',
             },
             warning: {
               icon: AlertCircle,
-              bg: 'bg-slate-900 border-amber-500/50 text-amber-400',
+              bg: 'bg-white border-amber-500/50 text-amber-400',
               iconColor: 'text-amber-400',
             },
             info: {
               icon: Info,
-              bg: 'bg-slate-900 border-indigo-500/50 text-indigo-400',
-              iconColor: 'text-indigo-400',
+              bg: 'bg-white border-brand-red/50 text-brand-red',
+              iconColor: 'text-brand-red',
             },
           }[toast.type] || {
             icon: Info,
-            bg: 'bg-slate-900 border-slate-700 text-slate-300',
-            iconColor: 'text-slate-400',
+            bg: 'bg-white border-gray-300 text-gray-700',
+            iconColor: 'text-brand-grey',
           };
 
           const Icon = typeConfig.icon;
@@ -60,10 +60,10 @@ export function ToastProvider({ children }) {
               className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-2xl backdrop-blur-md animate-fade-in ${typeConfig.bg}`}
             >
               <Icon className={`h-5 w-5 shrink-0 mt-0.5 ${typeConfig.iconColor}`} />
-              <p className="text-sm font-medium text-white flex-1">{toast.message}</p>
+              <p className="text-sm font-medium text-brand-black flex-1">{toast.message}</p>
               <button
                 onClick={() => removeToast(toast.id)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-brand-grey hover:text-brand-black transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
