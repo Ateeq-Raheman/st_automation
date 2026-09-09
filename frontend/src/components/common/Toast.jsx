@@ -28,18 +28,18 @@ export function ToastProvider({ children }) {
           const typeConfig = {
             success: {
               icon: CheckCircle2,
-              bg: 'bg-white border-emerald-500/50 text-emerald-400',
-              iconColor: 'text-emerald-400',
+              bg: 'bg-white border-emerald-500/50 text-emerald-700',
+              iconColor: 'text-emerald-600',
             },
             error: {
               icon: XCircle,
-              bg: 'bg-white border-rose-500/50 text-rose-400',
-              iconColor: 'text-rose-400',
+              bg: 'bg-white border-rose-500/50 text-rose-700',
+              iconColor: 'text-rose-600',
             },
             warning: {
               icon: AlertCircle,
-              bg: 'bg-white border-amber-500/50 text-amber-400',
-              iconColor: 'text-amber-400',
+              bg: 'bg-white border-amber-500/50 text-amber-700',
+              iconColor: 'text-amber-600',
             },
             info: {
               icon: Info,

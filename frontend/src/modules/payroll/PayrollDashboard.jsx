@@ -6,20 +6,21 @@ import {
 import { StatCard } from '../../components/common/StatCard';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
-import { formatCurrency } from '../../api/client';
+import { formatCurrency, formatDate } from '../../api/client';
 
-export function PayrollDashboard({ 
-  summary, 
-  isLoading, 
-  month, 
-  year, 
-  setMonth, 
-  setYear, 
-  onRunPayroll, 
+export function PayrollDashboard({
+  summary,
+  isLoading,
+  month,
+  year,
+  setMonth,
+  setYear,
+  onRunPayroll,
   onQuickIncentive,
   onBulkIncentive,
   onNewLoan,
-  onViewSalarySlips 
+  onViewSalarySlips,
+  recentStructureAssignments = []
 }) {
   const months = [
     { num: 1, name: 'January' }, { num: 2, name: 'February' },
@@ -49,7 +50,7 @@ export function PayrollDashboard({
           <select
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
-            className="bg-transparent text-xs font-bold text-brand-black px-2 py-1 focus:outline-none cursor-pointer"
+            className="bg-transparent text-sm font-bold text-brand-black px-2 py-1 focus:outline-none cursor-pointer"
           >
             {months.map((m) => (
               <option key={m.num} value={m.num} className="bg-white text-brand-black">
@@ -63,7 +64,7 @@ export function PayrollDashboard({
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="bg-transparent text-xs font-bold text-brand-black px-2 py-1 focus:outline-none cursor-pointer"
+            className="bg-transparent text-sm font-bold text-brand-black px-2 py-1 focus:outline-none cursor-pointer"
           >
             {years.map((y) => (
               <option key={y} value={y} className="bg-white text-brand-black">
@@ -75,9 +76,9 @@ export function PayrollDashboard({
       </div>
 
       {/* Main Action Banner: Run Payroll */}
-      <div className="glass-panel rounded-3xl p-6 border border-brand-red/30 bg-gradient-to-r from-indigo-950/40 via-slate-900/60 to-purple-950/40 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="glass-panel rounded-3xl p-6 border border-brand-red/30 bg-gradient-to-r from-red-50 via-white to-purple-50 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2 z-10 max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/20 border border-brand-red/30 text-indigo-300 text-xs font-bold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-50 border border-brand-red/30 text-brand-red text-sm font-bold">
             <ShieldCheck className="h-3.5 w-3.5" />
             <span>Ready for {months.find(m => m.num === month)?.name} {year}</span>
           </div>
@@ -158,11 +159,11 @@ export function PayrollDashboard({
         {/* Quick Incentive Card */}
         <div className="glass-panel rounded-2xl p-5 border space-y-3 hover:border-brand-red/40 transition-all flex flex-col justify-between">
           <div className="space-y-2">
-            <div className="p-2.5 rounded-xl bg-indigo-950/60 text-brand-red border border-indigo-800/40 w-fit">
+            <div className="p-2.5 rounded-xl bg-indigo-50 text-brand-red border border-indigo-200 w-fit">
               <Gift className="h-5 w-5" />
             </div>
             <h4 className="text-base font-bold text-brand-black">Quick Bonus / Incentive</h4>
-            <p className="text-xs text-brand-grey">
+            <p className="text-sm text-brand-grey">
               Add performance bonus or one-time incentive for an employee in 2 clicks.
             </p>
           </div>
@@ -179,11 +180,11 @@ export function PayrollDashboard({
         {/* Loan Application Card */}
         <div className="glass-panel rounded-2xl p-5 border space-y-3 hover:border-brand-red/40 transition-all flex flex-col justify-between">
           <div className="space-y-2">
-            <div className="p-2.5 rounded-xl bg-amber-950/60 text-amber-400 border border-amber-800/40 w-fit">
+            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 w-fit">
               <CreditCard className="h-5 w-5" />
             </div>
             <h4 className="text-base font-bold text-brand-black">Loan & Advance</h4>
-            <p className="text-xs text-brand-grey">
+            <p className="text-sm text-brand-grey">
               Auto-calculated monthly EMI with guaranteed 0-moratorium setup and disbursement.
             </p>
           </div>
@@ -197,11 +198,11 @@ export function PayrollDashboard({
         {/* Salary Slip Viewer Card */}
         <div className="glass-panel rounded-2xl p-5 border space-y-3 hover:border-brand-red/40 transition-all flex flex-col justify-between">
           <div className="space-y-2">
-            <div className="p-2.5 rounded-xl bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 w-fit">
+            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 w-fit">
               <FileText className="h-5 w-5" />
             </div>
             <h4 className="text-base font-bold text-brand-black">Salary Slips & Distribution</h4>
-            <p className="text-xs text-brand-grey">
+            <p className="text-sm text-brand-grey">
               Preview branded PDF payslips, batch download ZIP, or trigger email delivery.
             </p>
           </div>
@@ -212,6 +213,41 @@ export function PayrollDashboard({
           </div>
         </div>
       </div>
+
+      {/* Recent Salary Structure Assignments — there was a way to *assign*
+          a structure (the modal, from here or Loans & Advances) but nothing
+          anywhere showed what had actually been assigned, so there was no
+          way to confirm one worked short of running payroll and hoping. */}
+      {recentStructureAssignments.length > 0 && (
+        <div className="glass-panel rounded-2xl border overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-gray-200 bg-gray-50/60">
+            <h3 className="text-sm font-bold text-brand-black">Recent Salary Structure Assignments</h3>
+          </div>
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-brand-grey font-bold uppercase text-[13px]">
+                <th className="py-2.5 px-5">Employee</th>
+                <th className="py-2.5 px-5">Structure</th>
+                <th className="py-2.5 px-5">Base Salary</th>
+                <th className="py-2.5 px-5">From</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {recentStructureAssignments.map((row) => (
+                <tr key={row.name} className="hover:bg-gray-50/60 transition-colors">
+                  <td className="py-3 px-5">
+                    <div className="font-bold text-brand-black">{row.employee_name}</div>
+                    <div className="text-[13px] text-brand-grey">{row.employee}</div>
+                  </td>
+                  <td className="py-3 px-5 text-gray-700">{row.salary_structure}</td>
+                  <td className="py-3 px-5 font-semibold text-emerald-600">{formatCurrency(row.base)}</td>
+                  <td className="py-3 px-5 text-brand-grey">{formatDate(row.from_date)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

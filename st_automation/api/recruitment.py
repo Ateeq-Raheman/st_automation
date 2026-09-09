@@ -1,13 +1,13 @@
 import frappe
 from frappe.utils import (
 	now_datetime, add_to_date, get_datetime, format_datetime,
-	get_url, getdate, nowdate
+	get_url, getdate, nowdate, cint
 )
 import json
 from datetime import datetime, timedelta
 from st_automation.api.utils import (
 	success_response, error_response, generate_secure_token,
-	get_site_booking_url, ensure_custom_fields_exist
+	get_site_booking_url, ensure_custom_fields_exist, safe_int
 )
 
 
@@ -51,15 +51,34 @@ def get_recruitment_overview():
 
 
 @frappe.whitelist()
-def get_pipeline(job_opening=None, search=None):
+def get_pipeline(job_opening=None, search=None, company=None):
 	"""
 	Returns all applicants organized by workflow stages for the Kanban pipeline.
 	"""
-	ensure_custom_fields_exist()
 	try:
 		filters = {}
-		if job_opening and job_opening != "all":
-			filters["job_title"] = job_opening
+		specific_job = job_opening if (job_opening and job_opening != "all") else None
+
+		# Job Applicant has no `company` field of its own — a candidate's
+		# company is implied by which Job Opening they applied to. The
+		# company selector in the topbar was previously wired to state but
+		# never actually passed to this call, so switching companies never
+		# changed anything shown here.
+		empty_stages = {"stages": {"Open": [], "Replied": [], "Accepted": [], "Hold": [], "Rejected": []}}
+		if company:
+			company_job_titles = frappe.get_all(
+				"Job Opening", filters={"company": company}, pluck="name"
+			)
+			if specific_job and specific_job not in company_job_titles:
+				# The selected job opening doesn't belong to the selected
+				# company — nothing can match both, rather than silently
+				# ignoring one of the two filters.
+				return success_response(empty_stages)
+			if not company_job_titles:
+				return success_response(empty_stages)
+			filters["job_title"] = specific_job if specific_job else ["in", company_job_titles]
+		elif specific_job:
+			filters["job_title"] = specific_job
 
 		applicants = frappe.get_all(
 			"Job Applicant",
@@ -80,6 +99,16 @@ def get_pipeline(job_opening=None, search=None):
 				a for a in applicants
 				if q in (a.applicant_name or "").lower() or q in (a.email_id or "").lower() or q in (a.job_title or "").lower()
 			]
+
+		# One batched lookup instead of a per-row query — lets the frontend
+		# hide "Onboard as Employee" once it's already been done (it was
+		# showing every time regardless, so re-clicking just threw "Employee
+		# EMP-XXXXXX already exists with this email" instead of the button
+		# simply not being offered again).
+		employee_by_email = {
+			e.personal_email: e.name
+			for e in frappe.get_all("Employee", filters={"personal_email": ["is", "set"]}, fields=["name", "personal_email"])
+		}
 
 		# Normalize pipeline stages to standard ERPNext statuses
 		stages = {
@@ -111,6 +140,7 @@ def get_pipeline(job_opening=None, search=None):
 
 			app["stage"] = target_stage
 			app["booking_url"] = get_site_booking_url(booking_token) if booking_token else ""
+			app["employee"] = employee_by_email.get(app.get("email_id"))
 			stages[target_stage].append(app)
 
 		return success_response({
@@ -127,7 +157,6 @@ def shortlist_and_notify(applicant_id, notes=None):
 	Shortlists candidate, generates booking token with expiry, and triggers email.
 	Multi-step action collapsed into 1 click!
 	"""
-	ensure_custom_fields_exist()
 	try:
 		if not frappe.db.exists("Job Applicant", applicant_id):
 			return error_response(f"Applicant {applicant_id} does not exist.")
@@ -192,7 +221,6 @@ def get_available_slots(token):
 	Public endpoint for candidate slot booking.
 	Validates token and returns available time slots across the next 5 business days.
 	"""
-	ensure_custom_fields_exist()
 	try:
 		if not token:
 			return error_response("Booking token is required.")
@@ -276,7 +304,6 @@ def book_slot(token, slot_datetime, interviewer=None):
 	Public endpoint to confirm interview slot booking in 1 click.
 	Creates Interview doc and updates applicant.
 	"""
-	ensure_custom_fields_exist()
 	try:
 		if not token or not slot_datetime:
 			return error_response("Missing token or slot datetime.")
@@ -392,10 +419,10 @@ def generate_ics_content(subject, description, start_time, duration_hours=1):
 		"END:VEVENT",
 		"END:VCALENDAR"
 	]
-	return "\\r\\n".join(ics)
+	return "\r\n".join(ics)
 
 @frappe.whitelist(allow_guest=True)
-def submit_interview_feedback():
+def submit_guest_feedback():
     """Endpoint for interviewers to submit feedback via a secure token.
     Expected GET/POST params:
         token: secure token generated per interviewer
@@ -428,10 +455,13 @@ def submit_interview_feedback():
         return error_response('Invalid or expired feedback token')
 
     # Record feedback as a comment on the Interview
+    # Map Employee ID → User ID (email) since Frappe Comment.comment_by
+    # expects a User, not an Employee record name.
+    user_id = frappe.db.get_value("Employee", interviewer, "user_id") or frappe.session.user
     comment_text = f"Feedback from {interviewer}: {feedback}"
     if rating:
         comment_text += f" (Rating: {rating})"
-    interview.add_comment('Feedback', comment_text, comment_by=interviewer)
+    interview.add_comment('Feedback', comment_text, comment_by=user_id)
     interview.save(ignore_permissions=True)
     frappe.db.commit()
     return success_response(message='Feedback submitted successfully')
@@ -443,7 +473,6 @@ def schedule_interview_round(applicant_id, round_number, interviewers, scheduled
 	Schedules a specific interview round (1, 2, or 3) for a candidate.
 	Sends calendar invites (.ics) to all selected interviewers.
 	"""
-	ensure_custom_fields_exist()
 	try:
 		if not applicant_id or not round_number or not scheduled_time:
 			return error_response("Applicant ID, round number, and scheduled time are required.")
@@ -624,12 +653,38 @@ def get_my_interviews():
 	"""Returns list of upcoming and past interviews for the interviewer."""
 	try:
 		user = frappe.session.user
-		interviews = frappe.get_all(
-			"Interview",
-			fields=["name", "job_applicant", "job_opening", "scheduled_on", "status"],
-			order_by="scheduled_on desc",
-			limit=50
+		roles = frappe.get_roles(user)
+		is_hr_admin = (
+			user == "Administrator"
+			or "System Manager" in roles
+			or "HR Manager" in roles
+			or "HR User" in roles
 		)
+
+		if is_hr_admin:
+			# HR staff see all interviews
+			interviews = frappe.get_all(
+				"Interview",
+				fields=["name", "job_applicant", "job_opening", "scheduled_on", "status"],
+				order_by="scheduled_on desc",
+				limit=50
+			)
+		else:
+			# Regular users only see interviews they're assigned to
+			my_interview_names = frappe.get_all(
+				"Interview Detail",
+				filters={"interviewer": user},
+				pluck="parent"
+			)
+			if not my_interview_names:
+				return success_response({"interviews": []})
+			interviews = frappe.get_all(
+				"Interview",
+				filters={"name": ["in", my_interview_names]},
+				fields=["name", "job_applicant", "job_opening", "scheduled_on", "status"],
+				order_by="scheduled_on desc",
+				limit=50
+			)
 
 		results = []
 		for item in interviews:
@@ -672,7 +727,6 @@ def submit_interview_feedback(interview_id, rating, recommendation, comments, sc
 	"""
 	Submits structured interview feedback and moves candidate to 'Interview Completed'.
 	"""
-	ensure_custom_fields_exist()
 	try:
 		if not interview_id:
 			return error_response("Interview ID is required.")
@@ -710,6 +764,40 @@ def submit_interview_feedback(interview_id, rating, recommendation, comments, sc
 		return error_response(f"Error submitting feedback: {str(e)}", e)
 
 
+def _get_default_company():
+	"""Shared default-company lookup, matching what `onboard_candidate` already used."""
+	company = frappe.db.get_single_value("Global Defaults", "default_company")
+	if not company:
+		companies = frappe.get_all("Company")
+		company = companies[0].name if companies else None
+	return company
+
+
+def _resolve_designation(job_title):
+	"""
+	Job Offer/Employee `designation` is a Link field to the Designation
+	doctype — it can't just be set to an arbitrary free-text job title
+	string (that raised "Could not find Designation: X" and was silently
+	swallowed by a bare except, so every Select decision's Job Offer
+	creation was failing without anyone noticing — confirmed via
+	`frappe.db.count("Job Offer") == 0` despite 6 candidates already marked
+	Selected/Hired). Auto-creates the Designation if it doesn't exist yet,
+	matching the pattern `onboard_candidate` already used for Employee
+	creation, now shared so both call sites can't drift out of sync again.
+	"""
+	if not job_title:
+		return None
+	if frappe.db.exists("Designation", job_title):
+		return job_title
+	try:
+		new_desig = frappe.new_doc("Designation")
+		new_desig.designation_name = job_title
+		new_desig.insert(ignore_permissions=True)
+		return job_title
+	except Exception:
+		return None
+
+
 @frappe.whitelist()
 def record_decision(applicant_id, decision, notes=None, salary_offered=None, designation=None):
 	"""
@@ -718,7 +806,6 @@ def record_decision(applicant_id, decision, notes=None, salary_offered=None, des
 	- Bench: tags as Talent Pool / Bench
 	- Reject: moves to Rejected, sends polite rejection email
 	"""
-	ensure_custom_fields_exist()
 	try:
 		if not frappe.db.exists("Job Applicant", applicant_id):
 			return error_response(f"Applicant {applicant_id} does not exist.")
@@ -732,15 +819,23 @@ def record_decision(applicant_id, decision, notes=None, salary_offered=None, des
 			doc.save(ignore_permissions=True)
 
 			# Attempt to create draft Job Offer if DocType exists
+			# NOTE: this was silently failing for every single Select decision
+			# until now — confirmed via Error Log: `status = "Draft"` isn't a
+			# valid Job Offer status (only "Awaiting Response"/"Accepted"/
+			# "Rejected" are), and free-text job titles that don't exactly
+			# match an existing Designation record also threw. Both errors
+			# were swallowed by the bare except below, so `Job Offer` count
+			# was 0 despite 6 candidates already marked Selected/Hired.
 			if frappe.db.exists("DocType", "Job Offer"):
 				try:
 					offer = frappe.new_doc("Job Offer")
 					offer.job_applicant = doc.name
 					offer.applicant_name = doc.applicant_name
 					offer.applicant_email = doc.email_id
-					offer.designation = designation or doc.job_title
+					offer.designation = _resolve_designation(designation or doc.job_title)
+					offer.company = _get_default_company()
 					offer.offer_date = nowdate()
-					offer.status = "Draft"
+					offer.status = "Awaiting Response"
 					offer.flags.ignore_permissions = True
 					offer.flags.ignore_mandatory = True
 					offer.insert(ignore_permissions=True)
@@ -754,7 +849,54 @@ def record_decision(applicant_id, decision, notes=None, salary_offered=None, des
 			doc.talent_pool_tag = "On Bench"
 			doc.add_comment("Comment", f"Hiring Decision: ON BENCH / TALENT POOL. {notes or ''}")
 			doc.save(ignore_permissions=True)
-			message = f"{doc.applicant_name} moved to Talent Pool / Bench."
+
+			# Previously this was a dead end: candidates sat with status=Hold
+			# forever with no notification and no way back into the pipeline.
+			# Select and Reject both message the candidate — Bench should too.
+			if doc.email_id:
+				try:
+					subject = f"Update regarding your application for {doc.job_title or 'Position'} — Standard Touch"
+					email_body = f"""
+					<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+						<p>Dear {doc.applicant_name},</p>
+						<p>Thank you for your interest in the <strong>{doc.job_title or 'Position'}</strong> role at Standard Touch.</p>
+						<p>We were impressed with your profile, and while we don't have an immediate opening that's the right fit today, we'd like to keep you in mind for upcoming opportunities that match your experience.</p>
+						<p>We'll reach out if a suitable role opens up — no action is needed from you right now.</p>
+						<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+						<p style="font-size: 12px; color: #94a3b8;">Standard Touch Recruitment Team</p>
+					</div>
+					"""
+					frappe.sendmail(
+						recipients=[doc.email_id],
+						subject=subject,
+						message=email_body,
+						now=True
+					)
+				except Exception as mail_err:
+					frappe.log_error(f"Bench email note: {mail_err}", "st_automation Bench Email")
+
+			message = f"{doc.applicant_name} moved to Talent Pool / Bench and notified."
+
+		elif decision == "Reconsider":
+			# Completes the loop for benched candidates: brings them back into
+			# the active decision pipeline (same stage as "Replied", where the
+			# full Select/Bench/Reject decision set is available) instead of
+			# leaving them stuck on the bench forever with no way forward.
+			# "Replied" (not "Interview Completed") is the actual valid Job
+			# Applicant status value — confirmed both by the field's own
+			# validation error and by `submit_interview_feedback` (line 687
+			# above) already using "Replied" for this exact same transition.
+			# `talent_pool_tag` is a constrained Select too (options defined
+			# in setup.py: "", Shortlisted, On Bench, Future Pipeline,
+			# Rejected) — "Reconsidered" isn't one of them either. Clearing
+			# it back to blank is both valid and semantically right: once
+			# pulled out of the bench and back into active decision-making,
+			# they're no longer in a talent-pool state this field describes.
+			doc.status = "Replied"
+			doc.talent_pool_tag = ""
+			doc.add_comment("Comment", f"Reconsidered from Talent Pool / Bench for a new role. {notes or ''}")
+			doc.save(ignore_permissions=True)
+			message = f"{doc.applicant_name} moved back into the active pipeline for a new decision."
 
 		elif decision == "Reject":
 			doc.status = "Rejected"
@@ -836,11 +978,61 @@ def quick_add_applicant(applicant_name, email_id, phone_number=None, job_title=N
 
 
 @frappe.whitelist()
-def get_job_openings():
-	"""Returns all job openings with applicant counts."""
+def create_job_opening(job_title, company, department=None, vacancies=1, publish=0, description=None):
+	"""
+	Quickly creates a Job Opening from just a title — Job Opening's
+	`designation` is a required Link field, so a recruiter typing a free-text
+	title (e.g. "Digital Marketing Lead") would normally hit a strict
+	Frappe validation error. Reuses `_resolve_designation()` (already backing
+	Select/Onboard elsewhere in this file) to auto-create the Designation
+	if it doesn't exist yet, matching the same "don't make HR deal with
+	ERPNext's strict linking" pattern used throughout this app.
+	"""
 	try:
+		if not job_title or not job_title.strip():
+			return error_response("Job title is required.")
+		if not company:
+			return error_response("Company is required.")
+
+		designation = _resolve_designation(job_title.strip())
+		if not designation:
+			return error_response(f"Could not resolve or create a Designation for '{job_title}'.")
+
+		opening = frappe.new_doc("Job Opening")
+		opening.job_title = job_title.strip()
+		opening.designation = designation
+		opening.company = company
+		opening.status = "Open"
+		opening.vacancies = safe_int(vacancies, 1) or 1
+		opening.publish = 1 if cint(publish) else 0
+		if department:
+			opening.department = department
+		if description:
+			opening.description = description
+		opening.flags.ignore_permissions = True
+		opening.flags.ignore_mandatory = True
+		opening.insert(ignore_permissions=True)
+
+		frappe.db.commit()
+		return success_response(
+			{"name": opening.name, "job_title": opening.job_title},
+			message=f"Job Opening '{opening.job_title}' created!"
+		)
+	except Exception as e:
+		return error_response(f"Error creating job opening: {str(e)}", e)
+
+
+@frappe.whitelist()
+def get_job_openings(company=None):
+	"""Returns all job openings with applicant counts, optionally filtered by company."""
+	try:
+		filters = {}
+		if company:
+			filters["company"] = company
+
 		openings = frappe.get_all(
 			"Job Opening",
+			filters=filters,
 			fields=["name", "job_title", "status", "designation", "department", "vacancies", "publish"],
 			order_by="creation desc"
 		)
@@ -867,8 +1059,111 @@ def toggle_job_opening(job_opening_id, publish):
 
 
 @frappe.whitelist()
+def send_offer_letter(applicant_id, file_url=None):
+	"""
+	Emails the candidate the offer letter HR uploads from their own machine
+	(via Frappe's standard `/api/method/upload_file`, then this endpoint
+	attaches that exact File record — no auto-generated PDF; the file HR
+	picked is what gets sent, always). Sent with `reference_doctype`/
+	`reference_name` pointing at the Job Offer record — this is standard
+	Frappe email threading, not custom sync code: the "ST HR" Email Account
+	already has both incoming and outgoing enabled on this site, so when the
+	candidate hits Reply in Gmail, Frappe's own scheduled mail-fetch job
+	picks up the reply and automatically threads it onto that Job Offer's
+	Communication timeline in ERPNext. No new email credentials needed.
+	"""
+	try:
+		if not file_url:
+			return error_response("Please upload the offer letter file before sending.")
+
+		if not frappe.db.exists("Job Applicant", applicant_id):
+			return error_response(f"Applicant {applicant_id} does not exist.")
+
+		app_doc = frappe.get_doc("Job Applicant", applicant_id)
+		if app_doc.status != "Accepted":
+			return error_response("Candidate must be Selected before an offer letter can be sent.")
+
+		if not app_doc.email_id:
+			return error_response("This candidate has no email address on file.")
+
+		file_name = frappe.db.get_value("File", {"file_url": file_url}, "name")
+		if not file_name:
+			return error_response("Could not find the uploaded file — please try uploading it again.")
+
+		offer_name = frappe.db.get_value("Job Offer", {"job_applicant": applicant_id})
+		if offer_name:
+			offer = frappe.get_doc("Job Offer", offer_name)
+		else:
+			# The Select decision's Job Offer creation can itself fail (e.g.
+			# an unresolvable Designation) — create one now instead of
+			# leaving the HR admin at a dead end with nothing to send.
+			offer = frappe.new_doc("Job Offer")
+			offer.job_applicant = app_doc.name
+			offer.applicant_name = app_doc.applicant_name
+			offer.applicant_email = app_doc.email_id
+			offer.designation = _resolve_designation(app_doc.job_title)
+			offer.company = _get_default_company()
+			offer.offer_date = nowdate()
+			offer.status = "Awaiting Response"
+			offer.flags.ignore_permissions = True
+			offer.flags.ignore_mandatory = True
+			offer.insert(ignore_permissions=True)
+
+		# Attach the uploaded File record directly (by `fid`) — Frappe reads
+		# and includes its actual bytes, so this is the real file HR chose,
+		# not a generated stand-in.
+		attachments = [{"fid": file_name}]
+		# Also link the file to this Job Offer so it shows up on the
+		# document itself, not just buried in the sent email.
+		frappe.db.set_value("File", file_name, {
+			"attached_to_doctype": "Job Offer",
+			"attached_to_name": offer.name,
+		})
+
+		role_label = offer.designation or app_doc.job_title or "this role"
+		subject = f"Offer of Employment — {role_label} at Standard Touch"
+		email_body = f"""
+		<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+			<p>Dear {app_doc.applicant_name},</p>
+			<p>Congratulations! We're delighted to offer you the position of <strong>{role_label}</strong> at Standard Touch.</p>
+			<p>Please find your formal offer letter attached to this email. Simply reply directly to this email to let us know if you accept, or if you have any questions about the offer.</p>
+			<p>We're looking forward to hearing from you!</p>
+			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+			<p style="font-size: 12px; color: #94a3b8;">Standard Touch Recruitment Team</p>
+		</div>
+		"""
+
+		frappe.sendmail(
+			recipients=[app_doc.email_id],
+			subject=subject,
+			message=email_body,
+			attachments=attachments,
+			reference_doctype="Job Offer",
+			reference_name=offer.name,
+			now=True,
+		)
+
+		offer.status = "Awaiting Response"
+		offer.flags.ignore_permissions = True
+		offer.save(ignore_permissions=True)
+
+		app_doc.add_comment("Comment", f"Offer letter emailed to {app_doc.email_id}.")
+
+		frappe.db.commit()
+		return success_response({
+			"applicant_id": applicant_id,
+			"job_offer": offer.name,
+		}, message=f"Offer letter sent to {app_doc.applicant_name}! Their reply will appear on the Job Offer's timeline in ERPNext.")
+	except Exception as e:
+		return error_response(f"Error sending offer letter: {str(e)}", e)
+
+
+@frappe.whitelist()
 def onboard_candidate(applicant_id):
 	"""Converts a Job Applicant into an Employee record in ERPNext."""
+	roles = frappe.get_roles(frappe.session.user)
+	if frappe.session.user != "Administrator" and not set(roles) & {"System Manager", "HR Manager", "HR User", "Payroll Manager"}:
+		frappe.throw("You do not have permission to perform this action.", frappe.PermissionError)
 	try:
 		if not frappe.db.exists("Job Applicant", applicant_id):
 			return error_response(f"Applicant {applicant_id} does not exist.")
@@ -889,24 +1184,9 @@ def onboard_candidate(applicant_id):
 		emp.status = "Active"
 		emp.date_of_joining = nowdate()
 		
-		# Handle Designation Link Field
-		if app_doc.job_title:
-			if frappe.db.exists("Designation", app_doc.job_title):
-				emp.designation = app_doc.job_title
-			else:
-				try:
-					new_desig = frappe.new_doc("Designation")
-					new_desig.designation_name = app_doc.job_title
-					new_desig.insert(ignore_permissions=True)
-					emp.designation = app_doc.job_title
-				except Exception:
-					pass
+		emp.designation = _resolve_designation(app_doc.job_title)
 		
-		# Need default company
-		company = frappe.db.get_single_value("Global Defaults", "default_company")
-		if not company:
-			company = frappe.get_all("Company")[0].name
-		emp.company = company
+		emp.company = _get_default_company()
 		
 		emp.flags.ignore_mandatory = True
 		emp.insert(ignore_permissions=True)

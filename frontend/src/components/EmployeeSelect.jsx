@@ -109,7 +109,7 @@ export default function EmployeeSelect({ value, onChange, className, multiple = 
             const emp = employees.find(e => e.name === empId);
             if (!emp) return null;
             return (
-              <span key={empId} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 border border-gray-200 text-xs font-semibold text-gray-700">
+              <span key={empId} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 border border-gray-200 text-sm font-semibold text-gray-700">
                 {emp.employee_name}
                 <button 
                   onClick={(e) => removeValue(e, empId)}
@@ -141,7 +141,7 @@ export default function EmployeeSelect({ value, onChange, className, multiple = 
                   <span className={`text-sm ${isSelected ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
                     {emp.employee_name}
                   </span>
-                  <span className="text-[10px] text-gray-500 font-normal">
+                  <span className="text-[12px] text-gray-500 font-normal">
                     {emp.name}
                   </span>
                 </div>

@@ -8,7 +8,6 @@ def check_system_health(company=None):
 	Pre-flight diagnostics check for ERPNext HR Ops.
 	Surfaces configuration status with actionable badges and 1-click fixes.
 	"""
-	ensure_custom_fields_exist()
 	try:
 		if not company:
 			company = frappe.defaults.get_user_default("company") or frappe.db.get_single_value("Global Defaults", "default_company")

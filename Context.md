@@ -89,16 +89,8 @@ bench --site standardtouch clear-cache
 
 ## 🗄️ DB Credentials (standardtouch site)
 
-```
-DB Name:     _e7cf2347b89074d9
-DB Password: LaAmcjrwgUq3j4Ec
-Site Name:   standardtouch
-```
-
-MySQL query example:
-```bash
-mysql -u _e7cf2347b89074d9 -pLaAmcjrwgUq3j4Ec _e7cf2347b89074d9 -e "SELECT name, applicant_name, status FROM \`tabJob Applicant\` LIMIT 20;"
-```
+> **Redacted** — DB credentials should not be stored in version-controlled files.
+> Use `bench --site standardtouch mariadb` for interactive DB access.
 
 ## 🐛 Known Bugs / Gotchas
 

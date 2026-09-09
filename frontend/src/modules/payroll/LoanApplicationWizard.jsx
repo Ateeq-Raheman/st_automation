@@ -12,12 +12,14 @@ import EmployeeSelect from '../../components/EmployeeSelect';
 
 export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting }) {
   const [step, setStep] = useState(1);
+  const todayStr = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState({
     employee: '',
     amount: '',
     tenure_months: 10,
     loan_product: '',
     custom_moratorium: 0,
+    disbursement_date: todayStr,
   });
 
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -34,6 +36,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
         tenure_months: 10,
         loan_product: '',
         custom_moratorium: 0,
+        disbursement_date: todayStr,
       });
       setShowAdvanced(false);
       setPreviewData(null);
@@ -80,7 +83,8 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
       formData.tenure_months,
       monthlyAmt,
       formData.loan_product,
-      formData.custom_moratorium
+      formData.custom_moratorium,
+      formData.disbursement_date
     );
   };
 
@@ -102,7 +106,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
           ].map((s, idx) => (
             <React.Fragment key={s.num}>
               <div className="flex items-center gap-2">
-                <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                <div className={`h-7 w-7 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
                   step === s.num 
                     ? 'bg-brand-red text-white shadow-lg shadow-glow-red' 
                     : step > s.num 
@@ -111,7 +115,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
                 }`}>
                   {step > s.num ? <CheckCircle2 className="h-4 w-4" /> : s.num}
                 </div>
-                <span className={`text-xs font-bold hidden sm:inline ${
+                <span className={`text-sm font-bold hidden sm:inline ${
                   step === s.num ? 'text-brand-black' : 'text-brand-grey'
                 }`}>
                   {s.label}
@@ -126,7 +130,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
         {step === 1 && (
           <div className="space-y-4 animate-fade-in">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5">Employee *</label>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">Employee *</label>
               <EmployeeSelect
                 value={formData.employee}
                 onChange={(e) => setFormData({ ...formData, employee: e.target.value })}
@@ -135,7 +139,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">Loan / Advance Amount (₹) *</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Loan / Advance Amount (₹) *</label>
                 <input
                   type="number"
                   required
@@ -148,7 +152,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">Repayment Tenure (Months) *</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Repayment Tenure (Months) *</label>
                 <select
                   value={formData.tenure_months}
                   onChange={(e) => setFormData({ ...formData, tenure_months: Number(e.target.value) })}
@@ -163,12 +167,32 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
               </div>
             </div>
 
+            {/* Loan Start (Disbursement) Date — needed for entering an
+                already-existing loan when first moving this system to
+                production (a loan actually disbursed months ago). Can be
+                backdated for record-keeping, but repayment/deductions
+                always start from today regardless — never retroactive. */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">Loan Start (Disbursement) Date *</label>
+              <input
+                type="date"
+                required
+                max={todayStr}
+                value={formData.disbursement_date}
+                onChange={(e) => setFormData({ ...formData, disbursement_date: e.target.value })}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black font-bold focus:outline-none focus:border-brand-red"
+              />
+              <p className="mt-1 text-[13px] text-brand-grey">
+                Can be in the past for an existing loan. Monthly deductions always begin from the next payroll cycle, never backdated.
+              </p>
+            </div>
+
             {/* Advanced Toggle (Moratorium default 0) */}
             <div className="pt-2">
               <button
                 type="button"
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className="text-xs font-semibold text-brand-grey hover:text-brand-red flex items-center gap-1.5"
+                className="text-sm font-semibold text-brand-grey hover:text-brand-red flex items-center gap-1.5"
               >
                 <Settings2 className="h-3.5 w-3.5" />
                 <span>{showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options (Moratorium)'}</span>
@@ -176,7 +200,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
 
               {showAdvanced && (
                 <div className="mt-3 p-3 rounded-xl bg-gray-50/60 border border-gray-200 space-y-2">
-                  <label className="block text-xs font-bold text-gray-700">
+                  <label className="block text-sm font-bold text-gray-700">
                     Moratorium Tenure (Periods) — Defaults to 0
                   </label>
                   <input
@@ -184,9 +208,9 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
                     min="0"
                     value={formData.custom_moratorium}
                     onChange={(e) => setFormData({ ...formData, custom_moratorium: Number(e.target.value) })}
-                    className="w-32 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-brand-black"
+                    className="w-32 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-brand-black"
                   />
-                  <p className="text-[11px] text-gray-500">
+                  <p className="text-[13px] text-gray-500">
                     Caution: Setting moratorium &gt; 0 delays the first payroll deduction by that many months.
                   </p>
                 </div>
@@ -215,36 +239,36 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
           <div className="space-y-5 animate-fade-in">
             <div className="bg-gray-50/70 border border-gray-200 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-gray-200 pb-3">
-                <span className="text-xs font-bold text-brand-grey uppercase">Employee</span>
+                <span className="text-sm font-bold text-brand-grey uppercase">Employee</span>
                 <span className="text-sm font-bold text-brand-black">{previewData.employee_name} ({previewData.employee})</span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="bg-white/80 p-3 rounded-xl border border-gray-200/80">
-                  <span className="text-[11px] text-brand-grey block font-semibold">Principal Loan</span>
+                  <span className="text-[13px] text-brand-grey block font-semibold">Principal Loan</span>
                   <span className="text-base font-heading font-bold text-brand-black mt-0.5 block">
                     {formatCurrency(previewData.principal_amount)}
                   </span>
                 </div>
 
-                <div className="bg-indigo-950/40 p-3 rounded-xl border border-indigo-800/40">
-                  <span className="text-[11px] text-indigo-300 block font-semibold">Monthly EMI</span>
-                  <span className="text-base font-heading font-bold text-indigo-300 mt-0.5 block">
+                <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200">
+                  <span className="text-[13px] text-indigo-700 block font-semibold">Monthly EMI</span>
+                  <span className="text-base font-heading font-bold text-indigo-700 mt-0.5 block">
                     {formatCurrency(previewData.monthly_installment)} / mo
                   </span>
                 </div>
 
                 <div className="bg-white/80 p-3 rounded-xl border border-gray-200/80">
-                  <span className="text-[11px] text-brand-grey block font-semibold">Tenure</span>
+                  <span className="text-[13px] text-brand-grey block font-semibold">Tenure</span>
                   <span className="text-base font-heading font-bold text-brand-black mt-0.5 block">
                     {previewData.tenure_months} Months
                   </span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-800/30 flex items-start gap-2.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-emerald-300">
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-emerald-700">
                   <strong>Zero-Moratorium Verified:</strong> Installment of {formatCurrency(previewData.monthly_installment)} will automatically link to the next upcoming monthly payroll cycle.
                 </p>
               </div>
@@ -265,16 +289,16 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
         {step === 3 && (
           <div className="space-y-5 animate-fade-in">
             <div className="text-center space-y-2 py-3">
-              <div className="h-12 w-12 rounded-2xl bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 flex items-center justify-center mx-auto shadow-glow-emerald">
+              <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto shadow-glow-emerald">
                 <CreditCard className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-brand-black">Ready to Disburse Loan</h3>
-              <p className="text-xs text-brand-grey max-w-sm mx-auto">
+              <p className="text-sm text-brand-grey max-w-sm mx-auto">
                 This will sanction the loan in ERPNext, generate the repayment schedule, and activate monthly deductions.
               </p>
             </div>
 
-            <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-200 text-xs space-y-2">
+            <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-200 text-sm space-y-2">
               <div className="flex justify-between text-gray-700">
                 <span>Disbursement Amount:</span>
                 <span className="font-bold text-brand-black">{formatCurrency(formData.amount)}</span>

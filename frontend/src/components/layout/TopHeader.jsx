@@ -31,7 +31,7 @@ export function TopHeader({
             <select
               value={selectedCompany}
               onChange={(e) => setSelectedCompany(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-brand-black focus:outline-none cursor-pointer"
+              className="bg-transparent text-sm font-semibold text-brand-black focus:outline-none cursor-pointer"
             >
               {userProfile.companies.map((c) => (
                 <option key={c.name} value={c.name} className="bg-white text-brand-black">
@@ -41,24 +41,30 @@ export function TopHeader({
             </select>
           </div>
         ) : (
-          <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-brand-grey">
+          <div className="hidden sm:flex items-center gap-2 text-sm font-semibold text-brand-grey">
             <Building2 className="h-4 w-4 text-brand-red" />
             <span>{selectedCompany || 'Standard Touch'}</span>
           </div>
         )}
       </div>
 
-      {/* Quick Actions Bar */}
-      <div className="flex items-center gap-2.5">
+      {/* Quick Actions Bar. Icon-only below `sm` — at narrow widths (this
+          row doesn't wrap) full labels for both buttons plus the company
+          selector didn't fit, and the row overflowed past the viewport,
+          making the *whole page* horizontally scrollable rather than just
+          this bar. `title` keeps the action discoverable without the
+          visible label. */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
         {isRecruiter && (
           <Button
             size="sm"
             variant="outline"
             icon={UserPlus}
             onClick={onQuickAddCandidate}
-            className="text-xs"
+            className="text-sm px-2.5 sm:px-3"
+            title="Add Candidate"
           >
-            <span className="hidden sm:inline">Add</span> Candidate
+            <span className="hidden sm:inline">Add Candidate</span>
           </Button>
         )}
 
@@ -68,9 +74,10 @@ export function TopHeader({
             variant="primary"
             icon={Gift}
             onClick={onQuickAddIncentive}
-            className="text-xs"
+            className="text-sm px-2.5 sm:px-3"
+            title="Quick Incentive"
           >
-            <span className="hidden sm:inline">Quick</span> Incentive
+            <span className="hidden sm:inline">Quick Incentive</span>
           </Button>
         )}
       </div>

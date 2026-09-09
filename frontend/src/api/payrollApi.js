@@ -4,13 +4,16 @@ export const payrollApi = {
   getSummary: (company, month, year) => 
     callApi('st_automation.api.payroll.get_payroll_dashboard_summary', { company, month, year }, 'GET'),
   
-  quickAddIncentive: (employee, amount, salaryComponent, payrollDate, notes) => 
+  quickAddIncentive: (formData) =>
     callApi('st_automation.api.payroll.quick_add_incentive', {
-      employee,
-      amount,
-      salary_component: salaryComponent,
-      payroll_date: payrollDate,
-      notes,
+      employee: formData.employee,
+      amount: formData.amount,
+      salary_component: formData.salary_component,
+      payroll_date: formData.payroll_date,
+      notes: formData.notes,
+      is_recurring: formData.is_recurring ? 1 : 0,
+      from_date: formData.from_date,
+      to_date: formData.to_date,
     }),
   
   bulkAddIncentives: (incentivesList) => 
@@ -24,7 +27,7 @@ export const payrollApi = {
       loan_product: loanProduct,
     }, 'GET'),
   
-  createLoanAndDisburse: (employee, amount, tenureMonths, monthlyAmount, loanProduct, customMoratorium = 0) => 
+  createLoanAndDisburse: (employee, amount, tenureMonths, monthlyAmount, loanProduct, customMoratorium = 0, disbursementDate = null) =>
     callApi('st_automation.api.payroll.create_loan_and_disburse', {
       employee,
       amount,
@@ -32,6 +35,7 @@ export const payrollApi = {
       monthly_repayment_amount: monthlyAmount,
       loan_product: loanProduct,
       custom_moratorium: customMoratorium,
+      disbursement_date: disbursementDate,
     }),
   
   runPayrollAndReport: (company, startDate, endDate, costCenter) => 
@@ -42,11 +46,17 @@ export const payrollApi = {
       cost_center: costCenter,
     }),
   
-  getSalarySlips: (company, month, year, employee) => 
+  getSalarySlips: (company, month, year, employee) =>
     callApi('st_automation.api.payroll.get_salary_slips_summary', {
       company,
       month,
       year,
       employee,
     }, 'GET'),
+
+  getActiveLoans: (company) =>
+    callApi('st_automation.api.payroll.get_active_loans', { company }, 'GET'),
+
+  getRecentSalaryStructureAssignments: (company) =>
+    callApi('st_automation.api.payroll.get_recent_salary_structure_assignments', { company }, 'GET'),
 };

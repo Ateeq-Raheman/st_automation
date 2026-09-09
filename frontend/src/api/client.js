@@ -13,6 +13,35 @@ function getCsrfToken() {
   return '';
 }
 
+/**
+ * Uploads a File object via Frappe's standard `/api/method/upload_file`
+ * endpoint (multipart form, not JSON — this is why it doesn't go through
+ * `callApi`) and returns the resulting `{ file_url, name, ... }` File record.
+ */
+export async function uploadFile(file, { isPrivate = true, doctype, docname } = {}) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('is_private', isPrivate ? '1' : '0');
+  if (doctype) formData.append('doctype', doctype);
+  if (docname) formData.append('docname', docname);
+
+  const response = await fetch('/api/method/upload_file', {
+    method: 'POST',
+    headers: { 'X-Frappe-CSRF-Token': getCsrfToken() },
+    body: formData,
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    const errorMsg = data._server_messages
+      ? parseServerMessages(data._server_messages)
+      : data.message || data.exception || `Upload failed with status ${response.status}`;
+    throw new Error(errorMsg);
+  }
+
+  return data.message;
+}
+
 export async function callApi(methodPath, params = {}, httpMethod = 'POST') {
   try {
     const isGet = httpMethod.toUpperCase() === 'GET';

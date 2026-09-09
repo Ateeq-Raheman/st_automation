@@ -28,7 +28,7 @@ export function QuickAddApplicantModal({ isOpen, onClose, onAdd, jobOpenings = [
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5">Candidate Full Name *</label>
+          <label className="block text-sm font-bold text-gray-700 mb-1.5">Candidate Full Name *</label>
           <input
             type="text"
             required
@@ -41,7 +41,7 @@ export function QuickAddApplicantModal({ isOpen, onClose, onAdd, jobOpenings = [
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5">Email Address *</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Email Address *</label>
             <input
               type="email"
               required
@@ -53,7 +53,7 @@ export function QuickAddApplicantModal({ isOpen, onClose, onAdd, jobOpenings = [
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5">Phone Number</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Phone Number</label>
             <input
               type="tel"
               placeholder="+91 98765 43210"
@@ -65,7 +65,7 @@ export function QuickAddApplicantModal({ isOpen, onClose, onAdd, jobOpenings = [
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5">Target Job Opening</label>
+          <label className="block text-sm font-bold text-gray-700 mb-1.5">Target Job Opening</label>
           <select
             value={formData.job_title}
             onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
@@ -81,7 +81,7 @@ export function QuickAddApplicantModal({ isOpen, onClose, onAdd, jobOpenings = [
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5">Resume / CV Link</label>
+          <label className="block text-sm font-bold text-gray-700 mb-1.5">Resume / CV Link</label>
           <input
             type="url"
             placeholder="https://drive.google.com/... or LinkedIn profile URL"
@@ -92,13 +92,13 @@ export function QuickAddApplicantModal({ isOpen, onClose, onAdd, jobOpenings = [
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5">Optional Notes / Internal Comments</label>
+          <label className="block text-sm font-bold text-gray-700 mb-1.5">Optional Notes / Internal Comments</label>
           <textarea
             placeholder="e.g. Referred by Tech Lead, 4 years React experience..."
             rows={2}
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-brand-black focus:outline-none focus:border-brand-red"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-brand-black focus:outline-none focus:border-brand-red"
           />
         </div>
 

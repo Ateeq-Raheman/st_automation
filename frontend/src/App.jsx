@@ -14,6 +14,7 @@ import { JobOpeningsView } from './modules/recruitment/JobOpeningsView';
 import { MyInterviewsView } from './modules/recruitment/MyInterviewsView';
 import { ApplicantDetailModal } from './modules/recruitment/ApplicantDetailModal';
 import { QuickAddApplicantModal } from './modules/recruitment/QuickAddApplicantModal';
+import { QuickAddJobOpeningModal } from './modules/recruitment/QuickAddJobOpeningModal';
 import { FeedbackScorecardModal } from './modules/recruitment/FeedbackScorecardModal';
 
 // Payroll Views & Modals
@@ -59,6 +60,8 @@ export function AppContent() {
   // Payroll Data
   const [payrollSummary, setPayrollSummary] = useState(null);
   const [salarySlips, setSalarySlips] = useState([]);
+  const [activeLoans, setActiveLoans] = useState([]);
+  const [recentStructureAssignments, setRecentStructureAssignments] = useState([]);
   const [isPayrollLoading, setIsPayrollLoading] = useState(false);
 
   // Diagnostics Data
@@ -68,7 +71,9 @@ export function AppContent() {
 
   // Modal States
   const [activeApplicant, setActiveApplicant] = useState(null);
+  const [openInSchedulingMode, setOpenInSchedulingMode] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isNewJobOpeningOpen, setIsNewJobOpeningOpen] = useState(false);
   const [isQuickIncentiveOpen, setIsQuickIncentiveOpen] = useState(false);
   const [isBulkIncentiveOpen, setIsBulkIncentiveOpen] = useState(false);
   const [isLoanWizardOpen, setIsLoanWizardOpen] = useState(false);
@@ -117,8 +122,8 @@ export function AppContent() {
     setIsRecruitmentLoading(true);
     try {
       const [pipeRes, jobsRes, intRes] = await Promise.all([
-        recruitmentApi.getPipeline(selectedJob, searchQuery),
-        recruitmentApi.getJobOpenings(),
+        recruitmentApi.getPipeline(selectedJob, searchQuery, selectedCompany),
+        recruitmentApi.getJobOpenings(selectedCompany),
         recruitmentApi.getMyInterviews(),
       ]);
       setPipelineData(pipeRes.data);
@@ -129,18 +134,22 @@ export function AppContent() {
     } finally {
       setIsRecruitmentLoading(false);
     }
-  }, [selectedJob, searchQuery]);
+  }, [selectedJob, searchQuery, selectedCompany]);
 
   // Load Payroll Data
   const loadPayroll = useCallback(async () => {
     setIsPayrollLoading(true);
     try {
-      const [sumRes, slipsRes] = await Promise.all([
+      const [sumRes, slipsRes, loansRes, structuresRes] = await Promise.all([
         payrollApi.getSummary(selectedCompany, month, year),
         payrollApi.getSalarySlips(selectedCompany, month, year),
+        payrollApi.getActiveLoans(selectedCompany),
+        payrollApi.getRecentSalaryStructureAssignments(selectedCompany),
       ]);
       setPayrollSummary(sumRes.data);
       setSalarySlips(slipsRes.data?.slips || []);
+      setActiveLoans(loansRes.data || []);
+      setRecentStructureAssignments(structuresRes.data || []);
     } catch (err) {
       console.error('Error loading payroll data', err);
     } finally {
@@ -214,6 +223,26 @@ export function AppContent() {
     }
   };
 
+  const handleCreateJobOpening = async (formData) => {
+    setIsActionLoading(true);
+    try {
+      const res = await recruitmentApi.createJobOpening(
+        formData.job_title,
+        selectedCompany,
+        formData.department,
+        formData.vacancies,
+        formData.publish ? 1 : 0
+      );
+      addToast(res.message || 'Job Opening created!', 'success');
+      setIsNewJobOpeningOpen(false);
+      loadRecruitment();
+    } catch (err) {
+      addToast(err.message || 'Failed to create job opening', 'error');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   const handleSubmitScorecard = async (interviewId, rating, recommendation, comments, scorecard) => {
     setIsActionLoading(true);
     try {
@@ -239,10 +268,10 @@ export function AppContent() {
   };
 
   // 1-Click Handlers: Payroll
-  const handleQuickAddIncentive = async (emp, amt, comp, pdate, notes) => {
+  const handleQuickAddIncentive = async (formData) => {
     setIsActionLoading(true);
     try {
-      const res = await payrollApi.quickAddIncentive(emp, amt, comp, pdate, notes);
+      const res = await payrollApi.quickAddIncentive(formData);
       addToast(res.message || 'Incentive added!', 'success');
       setIsQuickIncentiveOpen(false);
       loadPayroll();
@@ -267,10 +296,10 @@ export function AppContent() {
     }
   };
 
-  const handleDisburseLoan = async (emp, amt, tenure, monthlyAmt, product, moratorium) => {
+  const handleDisburseLoan = async (emp, amt, tenure, monthlyAmt, product, moratorium, disbursementDate) => {
     setIsActionLoading(true);
     try {
-      const res = await payrollApi.createLoanAndDisburse(emp, amt, tenure, monthlyAmt, product, moratorium);
+      const res = await payrollApi.createLoanAndDisburse(emp, amt, tenure, monthlyAmt, product, moratorium, disbursementDate);
       addToast(res.message || 'Loan disbursed successfully!', 'success');
       setIsLoanWizardOpen(false);
       loadPayroll();
@@ -318,7 +347,7 @@ export function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-brand-black flex">
+    <div className="min-h-screen bg-gray-50 text-brand-black flex overflow-x-hidden">
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
@@ -349,6 +378,10 @@ export function AppContent() {
               isLoading={isRecruitmentLoading}
               onRefresh={loadRecruitment}
               onOpenApplicant={(app) => setActiveApplicant(app)}
+              onScheduleInterview={(app) => {
+                setOpenInSchedulingMode(true);
+                setActiveApplicant(app);
+              }}
               onShortlist={handleShortlist}
               onQuickAdd={() => setIsQuickAddOpen(true)}
               jobOpenings={jobOpenings}
@@ -364,6 +397,7 @@ export function AppContent() {
               jobOpenings={jobOpenings}
               onTogglePublish={handleToggleJob}
               isLoading={isRecruitmentLoading}
+              onNewJobOpening={() => setIsNewJobOpeningOpen(true)}
             />
           )}
 
@@ -389,6 +423,7 @@ export function AppContent() {
               onBulkIncentive={() => setIsBulkIncentiveOpen(true)}
               onNewLoan={() => setIsLoanWizardOpen(true)}
               onViewSalarySlips={() => setActiveTab('salary-slips')}
+              recentStructureAssignments={recentStructureAssignments}
             />
           )}
 
@@ -399,11 +434,18 @@ export function AppContent() {
               year={year}
               onExecutePayroll={handleExecutePayroll}
               onViewSalarySlips={() => setActiveTab('salary-slips')}
+              onRefresh={loadPayroll}
             />
           )}
 
           {activeTab === 'loans' && (
-            <ActiveLoansView onLaunchLoanWizard={() => setIsLoanWizardOpen(true)} />
+            <ActiveLoansView
+              onLaunchLoanWizard={() => setIsLoanWizardOpen(true)}
+              company={selectedCompany}
+              loans={activeLoans}
+              isLoading={isPayrollLoading}
+              onRefresh={loadPayroll}
+            />
           )}
 
           {activeTab === 'salary-slips' && (
@@ -431,11 +473,15 @@ export function AppContent() {
       {/* Modals & Slide-overs */}
       <ApplicantDetailModal
         isOpen={!!activeApplicant}
-        onClose={() => setActiveApplicant(null)}
+        onClose={() => {
+          setActiveApplicant(null);
+          setOpenInSchedulingMode(false);
+        }}
         applicant={activeApplicant}
         onShortlist={handleShortlist}
         onDecision={handleDecision}
         isActionLoading={isActionLoading}
+        initialSchedulingOpen={openInSchedulingMode}
       />
 
       <QuickAddApplicantModal
@@ -443,6 +489,13 @@ export function AppContent() {
         onClose={() => setIsQuickAddOpen(false)}
         onAdd={handleQuickAddApplicant}
         jobOpenings={jobOpenings}
+        isSubmitting={isActionLoading}
+      />
+
+      <QuickAddJobOpeningModal
+        isOpen={isNewJobOpeningOpen}
+        onClose={() => setIsNewJobOpeningOpen(false)}
+        onAdd={handleCreateJobOpening}
         isSubmitting={isActionLoading}
       />
 

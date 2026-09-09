@@ -10,12 +10,13 @@ import { Badge } from '../../components/common/Badge';
 import { formatCurrency, formatDate, callApi } from '../../api/client';
 import { useToast } from '../../components/common/Toast';
 
-export function RunPayrollWizard({ 
-  company, 
-  month, 
-  year, 
-  onExecutePayroll, 
-  onViewSalarySlips 
+export function RunPayrollWizard({
+  company,
+  month,
+  year,
+  onExecutePayroll,
+  onViewSalarySlips,
+  onRefresh
 }) {
   const { addToast } = useToast();
   const [isExecuting, setIsExecuting] = useState(false);
@@ -86,40 +87,40 @@ export function RunPayrollWizard({
 
       {/* Step 1: Pre-run Verification */}
       {step === 1 && (
-        <div className="glass-panel rounded-3xl p-6 sm:p-8 border space-y-6 max-w-3xl">
+        <div className="glass-panel rounded-3xl p-6 sm:p-8 border space-y-6 max-w-3xl mx-auto">
           <div className="flex items-center gap-3 border-b border-gray-200 pb-4">
-            <div className="p-3 rounded-2xl bg-indigo-950/60 text-brand-red border border-indigo-800/40">
+            <div className="p-3 rounded-2xl bg-indigo-50 text-brand-red border border-indigo-200">
               <PlayCircle className="h-6 w-6" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-brand-black">
                 Period: {monthNames[month]} {year}
               </h3>
-              <p className="text-xs text-brand-grey">
+              <p className="text-sm text-brand-grey">
                 Company: <span className="text-gray-800 font-semibold">{company || 'Default'}</span> | Dates: <span className="text-gray-800 font-semibold">{startDate} to {endDate}</span>
               </p>
             </div>
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-grey">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-brand-grey">
               What will happen in 1 click:
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div className="p-3 rounded-xl bg-gray-50/60 border border-gray-200 flex items-start gap-2.5">
-                <Check className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                 <span className="text-gray-700">Fetches all active employees in {company || 'company'}</span>
               </div>
               <div className="p-3 rounded-xl bg-gray-50/60 border border-gray-200 flex items-start gap-2.5">
-                <Check className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                 <span className="text-gray-700">Auto-links active loan repayment installments</span>
               </div>
               <div className="p-3 rounded-xl bg-gray-50/60 border border-gray-200 flex items-start gap-2.5">
-                <Check className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                 <span className="text-gray-700">Adds pending performance incentives & bonuses</span>
               </div>
               <div className="p-3 rounded-xl bg-gray-50/60 border border-gray-200 flex items-start gap-2.5">
-                <Check className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                 <span className="text-gray-700">Generates and submits official Salary Slips</span>
               </div>
             </div>
@@ -150,7 +151,7 @@ export function RunPayrollWizard({
 
           <div className="space-y-2">
             <h3 className="text-xl font-bold text-brand-black">Executing Payroll for {monthNames[month]} {year}...</h3>
-            <p className="text-xs text-brand-grey">
+            <p className="text-sm text-brand-grey">
               Generating salary slips, calculating earnings & deductions, and submitting records...
             </p>
           </div>
@@ -161,15 +162,15 @@ export function RunPayrollWizard({
       {step === 3 && result && (
         <div className="space-y-6">
           {/* Summary Banner */}
-          <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-emerald-500/40 bg-emerald-950/20 space-y-6">
+          <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-emerald-200 bg-emerald-50 space-y-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-600 border border-emerald-200">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-heading font-bold text-brand-black">Draft Payroll Generated!</h3>
-                  <p className="text-xs text-emerald-600">
+                  <p className="text-sm text-emerald-600">
                     {result.total_processed} Salary Slips drafted for {monthNames[month]} {year}. Please review before submitting.
                   </p>
                 </div>
@@ -214,22 +215,22 @@ export function RunPayrollWizard({
             {/* Metric Breakdown Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
               <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-200">
-                <span className="text-xs font-bold text-brand-grey block uppercase">Total Gross Earnings</span>
+                <span className="text-sm font-bold text-brand-grey block uppercase">Total Gross Earnings</span>
                 <span className="text-xl font-heading font-bold text-brand-black mt-1 block">
                   {formatCurrency(result.total_gross)}
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-200">
-                <span className="text-xs font-bold text-brand-grey block uppercase">Total Deductions & Loans</span>
-                <span className="text-xl font-heading font-bold text-rose-400 mt-1 block">
+                <span className="text-sm font-bold text-brand-grey block uppercase">Total Deductions & Loans</span>
+                <span className="text-xl font-heading font-bold text-rose-600 mt-1 block">
                   {formatCurrency(result.total_deductions)}
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-200">
-                <span className="text-xs font-bold text-brand-grey block uppercase">Net Payout Amount</span>
-                <span className="text-xl font-heading font-bold text-emerald-400 mt-1 block">
+                <span className="text-sm font-bold text-brand-grey block uppercase">Net Payout Amount</span>
+                <span className="text-xl font-heading font-bold text-emerald-600 mt-1 block">
                   {formatCurrency(result.total_net_payout)}
                 </span>
               </div>
@@ -242,7 +243,7 @@ export function RunPayrollWizard({
               <span className="text-2xl">⚠️</span>
               <div>
                 <p className="text-sm font-bold text-amber-800">All salary slips are ₹0.00 — Submission is blocked</p>
-                <p className="text-xs text-amber-700 mt-0.5">
+                <p className="text-sm text-amber-700 mt-0.5">
                   Your employees do not have a <strong>Salary Structure</strong> assigned, so there is nothing to pay.
                   Click <strong>"Assign Structure"</strong> at the top right, assign a structure, then re-run payroll.
                 </p>
@@ -256,7 +257,7 @@ export function RunPayrollWizard({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActiveReportTab('success')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
                     activeReportTab === 'success' ? 'bg-brand-red text-white' : 'text-brand-grey hover:text-brand-black'
                   }`}
                 >
@@ -265,8 +266,8 @@ export function RunPayrollWizard({
                 {result.failed?.length > 0 && (
                   <button
                     onClick={() => setActiveReportTab('failed')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      activeReportTab === 'failed' ? 'bg-rose-600 text-brand-black' : 'text-rose-400 hover:text-brand-black'
+                    className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                      activeReportTab === 'failed' ? 'bg-rose-600 text-white' : 'text-rose-600 hover:text-brand-black'
                     }`}
                   >
                     Action Needed ({result.failed.length})
@@ -277,7 +278,7 @@ export function RunPayrollWizard({
 
             {/* List Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-brand-grey uppercase font-bold">
                     <th className="pb-3">Employee</th>
@@ -287,14 +288,14 @@ export function RunPayrollWizard({
                     <th className="pb-3 text-right">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 font-medium">
+                <tbody className="divide-y divide-gray-200 font-medium">
                   {activeReportTab === 'success' ? (
                     result.successful?.map((row) => (
-                      <tr key={row.salary_slip} className="hover:bg-white/60">
+                      <tr key={row.salary_slip} className="hover:bg-gray-50">
                         <td className="py-3 text-brand-black font-bold">{row.employee_name} ({row.employee})</td>
                         <td className="py-3 text-gray-700">{formatCurrency(row.gross_pay)}</td>
-                        <td className="py-3 text-rose-400">{formatCurrency(row.total_deduction)}</td>
-                        <td className="py-3 text-emerald-400 font-bold">{formatCurrency(row.net_pay)}</td>
+                        <td className="py-3 text-rose-600">{formatCurrency(row.total_deduction)}</td>
+                        <td className="py-3 text-emerald-600 font-bold">{formatCurrency(row.net_pay)}</td>
                         <td className="py-3 text-right">
                           <Badge variant={isSubmitted ? "success" : "warning"}>
                             {isSubmitted ? "Submitted" : "Draft"}
@@ -304,9 +305,9 @@ export function RunPayrollWizard({
                     ))
                   ) : (
                     result.failed?.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-white/60">
+                      <tr key={idx} className="hover:bg-gray-50">
                         <td className="py-3 text-brand-black font-bold">{row.employee_name || row.employee}</td>
-                        <td colSpan={3} className="py-3 text-rose-400">{row.error}</td>
+                        <td colSpan={3} className="py-3 text-rose-600">{row.error}</td>
                         <td className="py-3 text-right">
                           <Badge variant="danger">Error</Badge>
                         </td>
@@ -324,6 +325,7 @@ export function RunPayrollWizard({
         isOpen={isAssignStructureOpen}
         onClose={() => setIsAssignStructureOpen(false)}
         company={company}
+        onSuccess={onRefresh}
       />
     </div>
   );

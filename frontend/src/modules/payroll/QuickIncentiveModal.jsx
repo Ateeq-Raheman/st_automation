@@ -11,18 +11,16 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
     salary_component: 'Incentive',
     payroll_date: new Date().toISOString().split('T')[0],
     notes: '',
+    is_recurring: false,
+    from_date: new Date().toISOString().split('T')[0],
+    to_date: '',
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.employee || !formData.amount) return;
-    onAddIncentive(
-      formData.employee,
-      formData.amount,
-      formData.salary_component,
-      formData.payroll_date,
-      formData.notes
-    );
+    if (formData.is_recurring && !formData.from_date) return;
+    onAddIncentive(formData);
   };
 
   return (
@@ -35,7 +33,7 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5">Employee *</label>
+          <label className="block text-sm font-bold text-gray-700 mb-1.5">Employee *</label>
           <EmployeeSelect
             value={formData.employee}
             onChange={(e) => setFormData({ ...formData, employee: e.target.value })}
@@ -44,7 +42,7 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5">Incentive Amount (₹) *</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Incentive Amount (₹) *</label>
             <input
               type="number"
               required
@@ -58,7 +56,7 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5">Bonus Component</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Bonus Component</label>
             <select
               value={formData.salary_component}
               onChange={(e) => setFormData({ ...formData, salary_component: e.target.value })}
@@ -73,18 +71,54 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5">Payroll Date</label>
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
           <input
-            type="date"
-            value={formData.payroll_date}
-            onChange={(e) => setFormData({ ...formData, payroll_date: e.target.value })}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"
+            type="checkbox"
+            checked={formData.is_recurring}
+            onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+            className="h-4 w-4 rounded border-gray-300 text-brand-red focus:ring-brand-red"
           />
-        </div>
+          <span className="text-sm font-semibold text-gray-700">
+            Recurring — apply this every payroll run automatically (e.g. a monthly allowance), instead of a one-time bonus
+          </span>
+        </label>
+
+        {formData.is_recurring ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">Starts From *</label>
+              <input
+                type="date"
+                required
+                value={formData.from_date}
+                onChange={(e) => setFormData({ ...formData, from_date: e.target.value })}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">Ends On (leave blank to continue indefinitely)</label>
+              <input
+                type="date"
+                value={formData.to_date}
+                onChange={(e) => setFormData({ ...formData, to_date: e.target.value })}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"
+              />
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Payroll Date</label>
+            <input
+              type="date"
+              value={formData.payroll_date}
+              onChange={(e) => setFormData({ ...formData, payroll_date: e.target.value })}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"
+            />
+          </div>
+        )}
 
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5">Reason / Description</label>
+          <label className="block text-sm font-bold text-gray-700 mb-1.5">Reason / Description</label>
           <input
             type="text"
             placeholder="e.g. Q3 Sales Target Achievement"

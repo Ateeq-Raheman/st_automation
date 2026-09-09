@@ -1,0 +1,91 @@
+{
+ "actions": [],
+ "creation": "2026-08-30 03:15:00.000000",
+ "doctype": "DocType",
+ "document_type": "Setup",
+ "engine": "InnoDB",
+ "field_order": [
+  "primary_color",
+  "column_break_1",
+  "text_color",
+  "section_break_1",
+  "sidebar_color",
+  "column_break_2",
+  "sidebar_text_color"
+ ],
+ "fields": [
+  {
+   "default": "#ED1D24",
+   "description": "The app's main accent color — buttons, active states, badges, links.",
+   "fieldname": "primary_color",
+   "fieldtype": "Color",
+   "label": "Primary / Accent Color"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "#000000",
+   "description": "Main body text color used throughout the app.",
+   "fieldname": "text_color",
+   "fieldtype": "Color",
+   "label": "Text Color"
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break",
+   "label": "Sidebar"
+  },
+  {
+   "default": "#F9FAFB",
+   "description": "The sidebar's own background — independent of the main content area.",
+   "fieldname": "sidebar_color",
+   "fieldtype": "Color",
+   "label": "Sidebar Background Color"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "#000000",
+   "fieldname": "sidebar_text_color",
+   "fieldtype": "Color",
+   "label": "Sidebar Text Color"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-30 03:15:00.000000",
+ "modified_by": "Administrator",
+ "module": "stautomation",
+ "name": "HR Ops Theme Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

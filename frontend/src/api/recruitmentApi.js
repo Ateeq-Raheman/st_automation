@@ -3,8 +3,8 @@ import { callApi } from './client';
 export const recruitmentApi = {
   getOverview: () => callApi('st_automation.api.recruitment.get_recruitment_overview', {}, 'GET'),
   
-  getPipeline: (jobOpening, search) => 
-    callApi('st_automation.api.recruitment.get_pipeline', { job_opening: jobOpening, search }, 'GET'),
+  getPipeline: (jobOpening, search, company) =>
+    callApi('st_automation.api.recruitment.get_pipeline', { job_opening: jobOpening, search, company }, 'GET'),
   
   shortlistAndNotify: (applicantId, notes) => 
     callApi('st_automation.api.recruitment.shortlist_and_notify', { applicant_id: applicantId, notes }),
@@ -39,8 +39,17 @@ export const recruitmentApi = {
   quickAddApplicant: (data) => 
     callApi('st_automation.api.recruitment.quick_add_applicant', data),
   
-  getJobOpenings: () => 
-    callApi('st_automation.api.recruitment.get_job_openings', {}, 'GET'),
+  getJobOpenings: (company) =>
+    callApi('st_automation.api.recruitment.get_job_openings', { company }, 'GET'),
+
+  createJobOpening: (jobTitle, company, department, vacancies, publish) =>
+    callApi('st_automation.api.recruitment.create_job_opening', {
+      job_title: jobTitle,
+      company,
+      department,
+      vacancies,
+      publish,
+    }),
   
   toggleJobOpening: (jobOpeningId, publish) => 
     callApi('st_automation.api.recruitment.toggle_job_opening', { job_opening_id: jobOpeningId, publish }),

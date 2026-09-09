@@ -9,13 +9,25 @@ from st_automation.api.utils import (
 )
 
 
+HR_ADMIN_ROLES = {"System Manager", "HR Manager", "HR User", "Payroll Manager"}
+
+
+def _assert_hr_admin():
+	"""Raises PermissionError if the caller is not an HR admin."""
+	user = frappe.session.user
+	if user == "Administrator":
+		return
+	roles = set(frappe.get_roles(user))
+	if not roles & HR_ADMIN_ROLES:
+		frappe.throw("You do not have permission to perform this action.", frappe.PermissionError)
+
+
 @frappe.whitelist()
 def get_payroll_dashboard_summary(company=None, month=None, year=None):
 	"""
 	Command Center API: Single call returning all payroll readiness metrics,
 	loan alerts, pending incentives, and structure coverage.
 	"""
-	ensure_custom_fields_exist()
 	try:
 		if not company:
 			company = frappe.defaults.get_user_default("company") or frappe.db.get_single_value("Global Defaults", "default_company")
@@ -108,9 +120,14 @@ def get_payroll_dashboard_summary(company=None, month=None, year=None):
 
 
 @frappe.whitelist()
-def quick_add_incentive(employee, amount, salary_component=None, payroll_date=None, notes=None):
+def quick_add_incentive(employee, amount, salary_component=None, payroll_date=None, notes=None,
+                          is_recurring=0, from_date=None, to_date=None):
 	"""
-	Quick 2-click bonus/incentive creator. Creates standard Additional Salary doc.
+	Quick 2-click bonus/incentive creator. Creates standard Additional Salary
+	doc — including ERPNext's own `is_recurring`/`from_date`/`to_date` fields
+	(a real, already-supported feature this UI never exposed), so a monthly
+	allowance can be set up once instead of HR re-adding the same one-time
+	incentive by hand every single payroll cycle.
 	"""
 	try:
 		if not employee or not amount:
@@ -120,8 +137,12 @@ def quick_add_incentive(employee, amount, salary_component=None, payroll_date=No
 		if amt <= 0:
 			return error_response("Incentive amount must be greater than zero.")
 
+		recurring = bool(cint(is_recurring))
+		if recurring and not from_date:
+			return error_response("A start date is required for a recurring incentive.")
+
 		if not payroll_date:
-			payroll_date = nowdate()
+			payroll_date = from_date if recurring else nowdate()
 
 		# Auto-detect earning salary component if not passed
 		if not salary_component:
@@ -142,6 +163,16 @@ def quick_add_incentive(employee, amount, salary_component=None, payroll_date=No
 		doc.payroll_date = payroll_date
 		doc.overwrite_salary_structure_amount = 0
 		doc.deduct_full_tax_on_selected_payroll_date = 0
+		doc.is_recurring = 1 if recurring else 0
+		if recurring:
+			doc.from_date = from_date
+			# ERPNext's own Additional Salary validation requires BOTH
+			# from_date and to_date for a recurring entry — there's no
+			# built-in "ongoing indefinitely" option. Defaulting to 5 years
+			# out when the user leaves it blank approximates "ongoing"
+			# without leaving this a broken required field the UI called
+			# optional.
+			doc.to_date = to_date or add_months(getdate(from_date), 60)
 		if notes:
 			doc.description = notes
 
@@ -150,6 +181,7 @@ def quick_add_incentive(employee, amount, salary_component=None, payroll_date=No
 		frappe.db.commit()
 
 		emp_name = frappe.db.get_value("Employee", employee, "employee_name") or employee
+		recurring_note = f" (recurring from {from_date}{' to ' + to_date if to_date else ', ongoing'})" if recurring else ""
 
 		return success_response({
 			"name": doc.name,
@@ -157,8 +189,9 @@ def quick_add_incentive(employee, amount, salary_component=None, payroll_date=No
 			"employee_name": emp_name,
 			"amount": amt,
 			"salary_component": salary_component,
-			"payroll_date": payroll_date
-		}, message=f"Added incentive of ₹{amt:,.2f} for {emp_name}!")
+			"payroll_date": payroll_date,
+			"is_recurring": recurring,
+		}, message=f"Added incentive of ₹{amt:,.2f} for {emp_name}{recurring_note}!")
 	except Exception as e:
 		return error_response(f"Error adding incentive: {str(e)}", e)
 
@@ -267,19 +300,33 @@ def get_loan_preview(employee, amount, tenure_months, loan_product=None):
 
 
 @frappe.whitelist()
-def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_amount=None, loan_product=None, custom_moratorium=0):
+def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_amount=None, loan_product=None, custom_moratorium=0, disbursement_date=None):
 	"""
 	Guided 3-Step Loan Wizard Execution:
 	Collapses Loan Creation + Repayment Schedule + Disbursement into 1 atomic transaction.
 	Enforces moratorium_tenure = 0 and auto-fixes company loan configuration.
+
+	`disbursement_date` can be in the past — needed for entering an
+	already-existing loan when first moving this system to production
+	(e.g. a loan actually disbursed 3 months ago). It sets the Loan's own
+	`posting_date` and the Loan Disbursement's `disbursement_date` for
+	accurate record-keeping, but deliberately does NOT change
+	`repayment_start_date`, which always stays "today" — deductions only
+	ever start from the next/current payroll cycle onward, never
+	retroactively backdated for months that already passed.
 	"""
+	_assert_hr_admin()
 	try:
 		amt = safe_float(amount)
 		tenure = safe_int(tenure_months, 12)
 		moratorium = safe_int(custom_moratorium, 0)
+		disb_date = getdate(disbursement_date) if disbursement_date else nowdate()
 
 		if amt <= 0 or tenure <= 0:
 			return error_response("Amount and tenure must be greater than zero.")
+
+		if getdate(disb_date) > getdate(nowdate()):
+			return error_response("Disbursement date cannot be in the future.")
 
 		if not frappe.db.exists("DocType", "Loan"):
 			return error_response("ERPNext Loan / Lending module is not installed or enabled.")
@@ -350,7 +397,7 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 		loan_doc.interest_income_account = income_account
 		loan_doc.penalty_income_account = income_account
 
-		loan_doc.posting_date = nowdate()
+		loan_doc.posting_date = disb_date
 		loan_doc.flags.ignore_permissions = True
 		loan_doc.flags.ignore_mandatory = True
 		loan_doc.insert(ignore_permissions=True)
@@ -366,7 +413,7 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 				disbursement.applicant = employee
 				disbursement.company = company
 				disbursement.disbursed_amount = amt
-				disbursement.disbursement_date = nowdate()
+				disbursement.disbursement_date = disb_date
 				disbursement.payment_account = payment_account
 				disbursement.flags.ignore_permissions = True
 				disbursement.flags.ignore_mandatory = True
@@ -399,6 +446,7 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 	Creates Payroll Entry -> Fetches Employees -> Creates Salary Slips -> Submits Slips.
 	Returns comprehensive report with succeeded count, total payout, and flagged employees.
 	"""
+	_assert_hr_admin()
 	try:
 		if not company:
 			return error_response("Company is required.")
@@ -547,6 +595,7 @@ def submit_payroll(payroll_entry_id):
 	"""
 	Submits the Draft Payroll Entry and all its associated Salary Slips.
 	"""
+	_assert_hr_admin()
 	try:
 		if not frappe.db.exists("Payroll Entry", payroll_entry_id):
 			return error_response(f"Payroll Entry {payroll_entry_id} not found.")
@@ -604,9 +653,22 @@ def get_salary_slips_summary(company=None, month=None, year=None, employee=None)
 		filters["start_date"] = [">=", start_date]
 		filters["end_date"] = ["<=", end_date]
 
-		# Role-based filtering: if not Administrator and not HR Manager, enforce their own employee record
+		# Role-based filtering: HR staff see everyone's slips, everyone else
+		# only their own. This previously only recognized "HR Manager" —
+		# inconsistent with this app's own broader `is_hr_admin` definition
+		# (auth.py: System Manager / HR Manager / HR User / Payroll Manager),
+		# so a real HR user with "HR User" (not "HR Manager") saw an empty
+		# Salary Slips Hub despite 42 real, submitted slips existing.
 		user = frappe.session.user
-		if user != "Administrator" and "HR Manager" not in frappe.get_roles(user):
+		roles = frappe.get_roles(user)
+		is_hr_admin = (
+			user == "Administrator"
+			or "System Manager" in roles
+			or "HR Manager" in roles
+			or "HR User" in roles
+			or "Payroll Manager" in roles
+		)
+		if not is_hr_admin:
 			emp_id = frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "name")
 			if emp_id:
 				filters["employee"] = emp_id
@@ -673,6 +735,57 @@ def get_salary_structures(company=None):
 
 
 @frappe.whitelist()
+def get_active_loans(company=None):
+	"""
+	Returns recent Loan records so the Loans & Advances page can actually
+	show what's been disbursed — it previously never queried loans at all
+	and just showed a static "get started" card permanently, even with real
+	disbursed loans already in the system.
+	"""
+	if not frappe.db.exists("DocType", "Loan"):
+		return success_response([])
+
+	filters = {"docstatus": 1}
+	if company:
+		filters["company"] = company
+
+	loans = frappe.get_all(
+		"Loan",
+		filters=filters,
+		fields=[
+			"name", "applicant", "applicant_name", "loan_amount",
+			"monthly_repayment_amount", "status", "posting_date",
+			"disbursement_date", "repayment_periods",
+		],
+		order_by="creation desc",
+		limit_page_length=20,
+	)
+	return success_response(loans)
+
+
+@frappe.whitelist()
+def get_recent_salary_structure_assignments(company=None):
+	"""
+	Returns recently assigned Salary Structures — like `get_active_loans`,
+	this page had a way to *create* an assignment (the modal) but nothing
+	anywhere showed what had actually been assigned, so there was no way to
+	confirm an assignment worked short of running payroll and hoping.
+	"""
+	filters = {"docstatus": 1}
+	if company:
+		filters["company"] = company
+
+	rows = frappe.get_all(
+		"Salary Structure Assignment",
+		filters=filters,
+		fields=["name", "employee", "employee_name", "salary_structure", "base", "from_date", "creation"],
+		order_by="creation desc",
+		limit_page_length=10,
+	)
+	return success_response(rows)
+
+
+@frappe.whitelist()
 def get_active_employees(company=None):
 	"""
 	Returns a list of all active employees.
@@ -692,19 +805,32 @@ def get_active_employees(company=None):
 
 
 @frappe.whitelist()
-def assign_salary_structure(employee, salary_structure, from_date, company):
+def assign_salary_structure(employee, salary_structure, from_date, company, base=None):
 	"""
 	Quickly assigns a salary structure to an employee.
+
+	`base` is required, not optional — this system's salary components
+	compute their formulas off it, and every existing assignment made
+	before this field existed in the form has `base = 0.0` (confirmed via
+	direct query), meaning every payslip for those employees computes to
+	₹0.00. Silently defaulting to 0 here would just keep creating more of
+	the same broken assignments.
 	"""
+	_assert_hr_admin()
 	try:
 		if not employee or not salary_structure or not from_date or not company:
 			return error_response("Missing required fields")
-			
+
+		base_amount = safe_float(base)
+		if base_amount <= 0:
+			return error_response("Base salary is required and must be greater than zero.")
+
 		assignment = frappe.new_doc("Salary Structure Assignment")
 		assignment.employee = employee
 		assignment.salary_structure = salary_structure
 		assignment.from_date = from_date
 		assignment.company = company
+		assignment.base = base_amount
 		assignment.flags.ignore_permissions = True
 		assignment.insert(ignore_permissions=True)
 		assignment.submit()

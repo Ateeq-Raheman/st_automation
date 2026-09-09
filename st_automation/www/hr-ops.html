@@ -7,7 +7,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="/assets/st_automation/frontend/index.css?v={{ frappe.utils.now() }}" />
+	<link rel="stylesheet" href="/assets/st_automation/frontend/{{ css_file }}" />
 	<script>
 		window.ST_BOOT = {
 			"user": "{{ frappe.session.user }}",
@@ -17,6 +17,6 @@
 </head>
 <body class="bg-slate-900 text-slate-100 antialiased font-sans">
 	<div id="root"></div>
-	<script type="module" src="/assets/st_automation/frontend/index.js?v={{ frappe.utils.now() }}"></script>
+	<script type="module" src="/assets/st_automation/frontend/{{ js_file }}"></script>
 </body>
 </html>

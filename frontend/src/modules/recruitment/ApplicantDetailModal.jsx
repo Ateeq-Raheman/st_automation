@@ -2,22 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { 
   Mail, Phone, Calendar, Briefcase, FileText, Send, 
   CheckCircle, Clock, Copy, Check, Star, AlertCircle, 
-  ExternalLink, UserCheck, ShieldAlert, Users, Video
+  ExternalLink, UserCheck, ShieldAlert, Users, Video, RefreshCcw
 } from 'lucide-react';
 import { SlideOver } from '../../components/common/SlideOver';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
-import { formatDate, formatDateTime, callApi } from '../../api/client';
+import { formatDate, formatDateTime, callApi, uploadFile } from '../../api/client';
 import { useToast } from '../../components/common/Toast';
 import EmployeeSelect from '../../components/EmployeeSelect';
 
-export function ApplicantDetailModal({ 
-  isOpen, 
-  onClose, 
-  applicant, 
-  onShortlist, 
+export function ApplicantDetailModal({
+  isOpen,
+  onClose,
+  applicant,
+  onShortlist,
   onDecision,
-  isActionLoading 
+  isActionLoading,
+  initialSchedulingOpen = false
 }) {
   const { addToast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -25,8 +26,16 @@ export function ApplicantDetailModal({
   const [isDecisionOpen, setIsDecisionOpen] = useState(false);
   const [selectedDecision, setSelectedDecision] = useState(null);
 
-  // 3-Round Interview State
-  const [isSchedulingOpen, setIsSchedulingOpen] = useState(false);
+  // 3-Round Interview State. `initialSchedulingOpen` lets the Kanban card's
+  // "Schedule Interview" button (Replied column) jump straight into the
+  // scheduling form instead of landing on the general profile first —
+  // previously the only way to reach this was open profile -> find
+  // "Schedule Now" -> click it, a two-step detour for the single most
+  // common action on a shortlisted candidate.
+  const [isSchedulingOpen, setIsSchedulingOpen] = useState(initialSchedulingOpen);
+  useEffect(() => {
+    if (isOpen) setIsSchedulingOpen(initialSchedulingOpen);
+  }, [isOpen, applicant?.name, initialSchedulingOpen]);
   const [interviewRound, setInterviewRound] = useState(1);
   const [selectedInterviewers, setSelectedInterviewers] = useState([]);
   const [interviewTime, setInterviewTime] = useState('');
@@ -77,6 +86,18 @@ export function ApplicantDetailModal({
     }
   };
 
+  // Offer letter: HR uploads the actual file from their machine — nothing
+  // is auto-generated or sent without a file being picked first. These
+  // MUST stay above the `if (!applicant) return null` guard below — React
+  // requires every hook to run on every render, in the same order. Having
+  // them after an early return meant this component called a different
+  // number of hooks depending on whether `applicant` was set, which is
+  // exactly when it's non-null (i.e. the moment a candidate is actually
+  // clicked) — a real, confirmed crash, not a hypothetical one.
+  const [isOfferLetterOpen, setIsOfferLetterOpen] = useState(false);
+  const [offerLetterFile, setOfferLetterFile] = useState(null);
+  const [isSendingOffer, setIsSendingOffer] = useState(false);
+
   if (!applicant) return null;
 
   const copyBookingLink = () => {
@@ -97,6 +118,29 @@ export function ApplicantDetailModal({
       onDecision(applicant.name, selectedDecision, decisionNotes);
       setIsDecisionOpen(false);
       setDecisionNotes('');
+    }
+  };
+
+  const handleSendOfferLetter = async () => {
+    if (!offerLetterFile) return;
+    setIsSendingOffer(true);
+    try {
+      const uploaded = await uploadFile(offerLetterFile, {
+        isPrivate: true,
+        doctype: 'Job Applicant',
+        docname: applicant.name,
+      });
+      const res = await callApi('st_automation.api.recruitment.send_offer_letter', {
+        applicant_id: applicant.name,
+        file_url: uploaded.file_url,
+      });
+      addToast(res.message, 'success');
+      setIsOfferLetterOpen(false);
+      setOfferLetterFile(null);
+    } catch (err) {
+      addToast(err.message || 'Failed to send offer letter', 'error');
+    } finally {
+      setIsSendingOffer(false);
     }
   };
 
@@ -140,8 +184,8 @@ export function ApplicantDetailModal({
               <Mail className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-gray-500 block">Email Address</span>
-              <span className="text-xs font-bold text-gray-900 truncate block">{applicant.email_id || 'N/A'}</span>
+              <span className="text-[13px] font-semibold text-gray-500 block">Email Address</span>
+              <span className="text-sm font-bold text-gray-900 truncate block">{applicant.email_id || 'N/A'}</span>
             </div>
           </div>
 
@@ -150,8 +194,8 @@ export function ApplicantDetailModal({
               <Phone className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-gray-500 block">Phone</span>
-              <span className="text-xs font-bold text-gray-900 truncate block">{applicant.phone_number || 'N/A'}</span>
+              <span className="text-[13px] font-semibold text-gray-500 block">Phone</span>
+              <span className="text-sm font-bold text-gray-900 truncate block">{applicant.phone_number || 'N/A'}</span>
             </div>
           </div>
 
@@ -160,7 +204,7 @@ export function ApplicantDetailModal({
               <Calendar className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <span className="text-[11px] font-semibold text-gray-500 block">Current Stage</span>
+              <span className="text-[13px] font-semibold text-gray-500 block">Current Stage</span>
               <Badge variant="primary">{applicant.stage || applicant.status}</Badge>
             </div>
           </div>
@@ -177,18 +221,18 @@ export function ApplicantDetailModal({
               {scheduledInterviews.map((iv) => (
                 <div key={iv.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
                   <div>
-                    <span className="text-xs font-bold text-gray-900 block">{iv.name}</span>
-                    <span className="text-[11px] text-gray-500 mt-0.5 block flex items-center gap-1">
+                    <span className="text-sm font-bold text-gray-900 block">{iv.name}</span>
+                    <span className="text-[13px] text-gray-500 mt-0.5 block flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {formatDateTime(iv.scheduled_on)}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-right">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-gray-400 block mb-0.5">Interviewers</span>
+                      <span className="text-[12px] uppercase font-bold text-gray-400 block mb-0.5">Interviewers</span>
                       <div className="flex -space-x-2">
                         {iv.interviewers?.map((emp, i) => (
-                          <div key={i} className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[10px] font-bold border-2 border-white ring-1 ring-gray-100" title={emp}>
+                          <div key={i} className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[12px] font-bold border-2 border-white ring-1 ring-gray-100" title={emp}>
                             {emp.substring(0, 2).toUpperCase()}
                           </div>
                         ))}
@@ -227,7 +271,7 @@ export function ApplicantDetailModal({
               <div className="space-y-4 animate-fade-in bg-gray-50/50 p-4 rounded-xl border border-gray-100">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Interview Round</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Interview Round</label>
                     <select
                       value={interviewRound}
                       onChange={(e) => setInterviewRound(Number(e.target.value))}
@@ -240,7 +284,7 @@ export function ApplicantDetailModal({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Scheduled Date & Time *</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Scheduled Date & Time *</label>
                     <input
                       type="datetime-local"
                       value={interviewTime}
@@ -251,14 +295,14 @@ export function ApplicantDetailModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Assign Interviewers * <span className="font-normal text-gray-400">(Hold Ctrl/Cmd to select multiple)</span></label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5">Assign Interviewers * <span className="font-normal text-gray-400">(Hold Ctrl/Cmd to select multiple)</span></label>
                   <EmployeeSelect 
                     value={selectedInterviewers}
                     onChange={setSelectedInterviewers}
                     multiple={true}
                     className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 focus:border-brand-red h-32"
                   />
-                  <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
+                  <p className="text-[12px] text-gray-500 mt-1 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     Calendar invites (.ics) will be automatically emailed to all selected interviewers.
                   </p>
@@ -285,16 +329,16 @@ export function ApplicantDetailModal({
             <div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-amber-500" />
-                <h4 className="text-xs font-bold text-amber-800">Candidate Slot Booking Link Active</h4>
+                <h4 className="text-sm font-bold text-amber-800">Candidate Slot Booking Link Active</h4>
               </div>
-              <p className="text-xs text-amber-700/80 mt-1">
+              <p className="text-sm text-amber-700/80 mt-1">
                 Candidate was emailed the booking link. You can also share it directly:
               </p>
             </div>
 
             <button
               onClick={copyBookingLink}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold transition-colors shrink-0 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-amber-100 text-amber-700 border border-amber-200 text-sm font-bold transition-colors shrink-0 shadow-sm"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
               <span>{copied ? 'Copied!' : 'Copy Link'}</span>
@@ -305,7 +349,7 @@ export function ApplicantDetailModal({
         {/* Feedback / Scorecard Summary */}
         {applicant.interview_rating_summary && (
           <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+            <div className="flex items-center gap-2 text-sm font-bold text-emerald-800">
               <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
               <span>Interviewer Feedback Summary</span>
             </div>
@@ -318,7 +362,7 @@ export function ApplicantDetailModal({
         {/* Inline CV / Resume Viewer */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
               <FileText className="h-4 w-4 text-brand-red" />
               <span>Resume / CV Document</span>
             </h4>
@@ -327,7 +371,7 @@ export function ApplicantDetailModal({
                 href={applicant.resume_attachment}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs text-brand-red hover:text-red-700 font-semibold flex items-center gap-1"
+                className="text-sm text-brand-red hover:text-red-700 font-semibold flex items-center gap-1"
               >
                 <span>Open in new tab</span>
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -402,24 +446,78 @@ export function ApplicantDetailModal({
             </div>
           )}
 
-          {/* If Candidate is Selected/Accepted */}
+          {/* If Candidate is Selected/Accepted. Send Offer Letter opens a
+              small dialog where HR uploads the actual offer letter file
+              from their machine — nothing is auto-generated or sent without
+              a file being picked first. The email is threaded via Job
+              Offer's reference_doctype/reference_name so the candidate's
+              Gmail reply syncs back into ERPNext automatically through the
+              already-configured "ST HR" Email Account (incoming + outgoing
+              both enabled — no new credentials needed). Onboard as Employee
+              stays a separate, deliberate step HR takes once the candidate
+              has actually confirmed acceptance. */}
           {applicant.stage === 'Accepted' && (
-            <div className="flex items-center justify-end w-full">
+            <div className="flex items-center justify-end gap-2.5 w-full">
+              <Button
+                variant="secondary"
+                icon={Send}
+                onClick={() => setIsOfferLetterOpen(true)}
+              >
+                Send Offer Letter
+              </Button>
+
+              {/* `applicant.employee` comes from get_pipeline's batched
+                  Employee-by-email lookup. Previously this button showed
+                  unconditionally even after onboarding already succeeded,
+                  so re-clicking just threw "Employee EMP-XXXXXX already
+                  exists with this email" instead of not being offered at all. */}
+              {applicant.employee ? (
+                <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
+                  <UserCheck className="h-4 w-4" />
+                  Onboarded as {applicant.employee}
+                </span>
+              ) : (
+                <Button
+                  variant="primary"
+                  icon={UserCheck}
+                  isLoading={isActionLoading}
+                  onClick={async () => {
+                    try {
+                      const res = await callApi('st_automation.api.recruitment.onboard_candidate', { applicant_id: applicant.name });
+                      addToast(res.message, 'success');
+                      onClose();
+                    } catch (err) {
+                      addToast(err.message || 'Failed to onboard candidate', 'error');
+                    }
+                  }}
+                >
+                  Onboard as Employee
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* If Candidate is on the Bench / Talent Pool — previously a dead
+              end with no way forward. Reconsider sends them back into the
+              active pipeline (Replied stage) for a fresh decision; Reject
+              lets HR formally close out a bench candidate who's no longer
+              relevant instead of leaving them on the bench indefinitely. */}
+          {applicant.stage === 'Hold' && (
+            <div className="flex items-center gap-2.5 w-full justify-end">
               <Button
                 variant="primary"
-                icon={UserCheck}
+                icon={RefreshCcw}
                 isLoading={isActionLoading}
-                onClick={async () => {
-                  try {
-                    const res = await callApi('st_automation.api.recruitment.onboard_candidate', { applicant_id: applicant.name });
-                    addToast(res.message, 'success');
-                    onClose();
-                  } catch (err) {
-                    addToast(err.message || 'Failed to onboard candidate', 'error');
-                  }
-                }}
+                onClick={() => handleTriggerDecision('Reconsider')}
               >
-                Onboard as Employee
+                Reconsider for New Role
+              </Button>
+              <Button
+                variant="danger"
+                isLoading={isActionLoading}
+                onClick={() => handleTriggerDecision('Reject')}
+              >
+                Reject
               </Button>
             </div>
           )}
@@ -433,20 +531,21 @@ export function ApplicantDetailModal({
             <h3 className="text-lg font-bold text-gray-900">
               Confirm Hiring Decision: {selectedDecision}
             </h3>
-            <p className="text-xs text-gray-500">
+            <p className="text-sm text-gray-500">
               {selectedDecision === 'Select' && 'This will mark candidate as Selected and auto-draft a Job Offer.'}
-              {selectedDecision === 'Bench' && 'This will move candidate to Talent Pool / Bench for future open roles.'}
+              {selectedDecision === 'Bench' && 'This will move candidate to Talent Pool / Bench and send them a polite "keeping you in mind" email.'}
+              {selectedDecision === 'Reconsider' && 'This will move the candidate back into the active pipeline so you can make a fresh Select / Bench / Reject decision for a new role.'}
               {selectedDecision === 'Reject' && 'This will mark candidate as Rejected and trigger a polite notification email.'}
             </p>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Optional Notes / Reason</label>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Optional Notes / Reason</label>
               <textarea
                 value={decisionNotes}
                 onChange={(e) => setDecisionNotes(e.target.value)}
                 placeholder="Add any internal decision notes..."
                 rows={3}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-900 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
               />
             </div>
 
@@ -455,11 +554,67 @@ export function ApplicantDetailModal({
                 Cancel
               </Button>
               <Button
-                variant={selectedDecision === 'Select' ? 'success' : selectedDecision === 'Bench' ? 'warning' : 'danger'}
+                variant={
+                  selectedDecision === 'Select'
+                    ? 'success'
+                    : selectedDecision === 'Bench'
+                      ? 'warning'
+                      : selectedDecision === 'Reconsider'
+                        ? 'primary'
+                        : 'danger'
+                }
                 isLoading={isActionLoading}
                 onClick={confirmDecision}
               >
                 Confirm {selectedDecision}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Offer Letter — requires an actual file upload, nothing is
+          auto-generated. The uploaded file is attached to the email
+          exactly as HR provided it. */}
+      {isOfferLetterOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold text-gray-900">Send Offer Letter</h3>
+            <p className="text-sm text-gray-500">
+              Upload the offer letter file to email to {applicant.applicant_name}. The exact file you upload here is what gets attached and sent.
+            </p>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">Offer Letter File</label>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => setOfferLetterFile(e.target.files?.[0] || null)}
+                className="w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+              />
+              {offerLetterFile && (
+                <p className="mt-1.5 text-[13px] text-gray-500">Selected: {offerLetterFile.name}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setIsOfferLetterOpen(false);
+                  setOfferLetterFile(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                icon={Send}
+                isLoading={isSendingOffer}
+                disabled={!offerLetterFile}
+                onClick={handleSendOfferLetter}
+              >
+                Send Offer Letter
               </Button>
             </div>
           </div>

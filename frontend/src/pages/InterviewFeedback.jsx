@@ -84,7 +84,7 @@ export default function InterviewFeedback() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Link</h1>
           <p className="text-gray-500">{errorMsg}</p>
-          <p className="text-xs text-gray-400 mt-4">If you believe this is an error, please contact the HR team directly.</p>
+          <p className="text-sm text-gray-400 mt-4">If you believe this is an error, please contact the HR team directly.</p>
         </div>
       </div>
     );
@@ -161,7 +161,7 @@ export default function InterviewFeedback() {
                   key={option}
                   type="button"
                   onClick={() => setFeedback((prev) => `[${option}]\n\n${prev.replace(/^\[.*?\]\n\n/, '')}`)}
-                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
+                  className={`px-3 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
                     feedback.startsWith(`[${option}]`)
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                       : 'border-gray-200 text-gray-600 hover:border-gray-400'
@@ -192,7 +192,7 @@ export default function InterviewFeedback() {
             )}
           </button>
 
-          <p className="text-center text-xs text-gray-400">
+          <p className="text-center text-sm text-gray-400">
             This link is unique to you and can only be used once. Your submission will be attributed to your employee profile.
           </p>
         </form>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
-import { Building2, Save } from 'lucide-react';
+import { Building2, Save, ChevronDown, IndianRupee } from 'lucide-react';
 import { callApi } from '../../api/client';
+import { useToast } from '../../components/common/Toast';
 
 export function AssignSalaryStructureModal({ isOpen, onClose, company, employee, onSuccess }) {
+  const { addToast } = useToast();
   const [structures, setStructures] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -17,6 +19,7 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
   const [formData, setFormData] = useState({
     employee: employee || '',
     salary_structure: '',
+    base: '',
     from_date: defaultDate,
   });
 
@@ -53,14 +56,18 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
     e.preventDefault();
     setLoading(true);
     try {
-      await callApi('st_automation.api.payroll.assign_salary_structure', {
+      const res = await callApi('st_automation.api.payroll.assign_salary_structure', {
         company,
         ...formData
       });
+      // Previously this just closed silently on success — no confirmation
+      // that anything actually happened, and a raw browser `alert()` (not
+      // this app's own toast) on failure.
+      addToast(res.message || 'Salary Structure assigned!', 'success');
       onSuccess?.();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || err.message || 'Failed to assign salary structure');
+      addToast(err.message || 'Failed to assign salary structure', 'error');
     } finally {
       setLoading(false);
     }
@@ -77,7 +84,7 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
       <form onSubmit={handleSubmit} className="space-y-4 pt-2">
         {!employee && (
           <div>
-            <label className="block text-xs font-bold text-brand-black mb-1.5">Employee</label>
+            <label className="block text-sm font-bold text-brand-black mb-1.5">Employee</label>
             <select
               required
               value={formData.employee}
@@ -95,25 +102,51 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
         )}
 
         <div>
-          <label className="block text-xs font-bold text-brand-black mb-1.5">Salary Structure</label>
+          <label className="block text-sm font-bold text-brand-black mb-1.5">Salary Structure</label>
           <div className="relative">
-            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-grey" />
+            <Building2 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-grey" />
             <select
               required
               value={formData.salary_structure}
               onChange={(e) => setFormData(prev => ({ ...prev, salary_structure: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+              className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-9 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
             >
               <option value="">Select Structure...</option>
               {structures.map(s => (
                 <option key={s.name} value={s.name}>{s.name}</option>
               ))}
             </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-grey" />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-brand-black mb-1.5">From Date</label>
+          {/* Salary components in this system compute their formulas off
+              this Base figure — an assignment created without one always
+              ends up with base=0, so every payslip for that employee comes
+              out to ₹0.00 (confirmed: every existing Salary Structure
+              Assignment on this site has base=0.0, since this field never
+              existed in this form before). Required here, not just at the
+              DocType level, since silently defaulting to 0 is never a
+              sensible value for a real salary. */}
+          <label className="block text-sm font-bold text-brand-black mb-1.5">Base Salary (Monthly)</label>
+          <div className="relative">
+            <IndianRupee className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-grey" />
+            <input
+              type="number"
+              required
+              min="1"
+              step="0.01"
+              placeholder="e.g. 50000"
+              value={formData.base}
+              onChange={(e) => setFormData(prev => ({ ...prev, base: e.target.value }))}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-brand-black mb-1.5">From Date</label>
           <input
             type="date"
             required

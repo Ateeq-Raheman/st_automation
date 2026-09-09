@@ -150,38 +150,38 @@ END:VCALENDAR`;
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-brand-red to-red-700 flex items-center justify-center shadow-lg shadow-glow-red mx-auto">
-            <Sparkles className="h-6 w-6 text-brand-black" />
+            <Sparkles className="h-6 w-6 text-white" />
           </div>
           <h1 className="text-2xl font-heading font-bold text-brand-black tracking-tight">Standard Touch</h1>
-          <p className="text-xs font-bold text-brand-red uppercase tracking-widest">Candidate Interview Scheduler</p>
+          <p className="text-sm font-bold text-brand-red uppercase tracking-widest">Candidate Interview Scheduler</p>
         </div>
 
         {/* Error Card */}
         {error && (
-          <div className="glass-panel border-rose-500/50 bg-rose-950/30 rounded-2xl p-5 text-center space-y-3">
-            <AlertCircle className="h-8 w-8 text-rose-400 mx-auto" />
+          <div className="glass-panel border-rose-200 bg-rose-50 rounded-2xl p-5 text-center space-y-3">
+            <AlertCircle className="h-8 w-8 text-rose-600 mx-auto" />
             <h3 className="text-base font-bold text-brand-black">Booking Link Notice</h3>
-            <p className="text-xs text-rose-200">{error}</p>
+            <p className="text-sm text-rose-700">{error}</p>
           </div>
         )}
 
         {/* Booking Confirmed State */}
         {bookingSuccess ? (
-          <div className="glass-panel border-emerald-500/50 bg-emerald-950/20 rounded-3xl p-8 text-center space-y-6 animate-fade-in shadow-2xl">
-            <div className="h-16 w-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-glow-emerald">
+          <div className="glass-panel border-emerald-200 bg-emerald-50 rounded-3xl p-8 text-center space-y-6 animate-fade-in shadow-2xl">
+            <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto shadow-glow-emerald">
               <CheckCircle2 className="h-8 w-8" />
             </div>
 
             <div className="space-y-2">
               <h2 className="text-2xl font-heading font-bold text-brand-black">Interview Confirmed!</h2>
-              <p className="text-xs text-emerald-300">
+              <p className="text-sm text-emerald-700">
                 We're excited to speak with you, <span className="font-bold text-brand-black">{bookingSuccess.applicant_name}</span>.
               </p>
             </div>
 
             <div className="bg-gray-50/80 rounded-2xl p-5 border border-gray-200 space-y-2 text-left">
-              <div className="text-xs text-brand-grey">Position: <strong className="text-brand-black">{bookingSuccess.job_title}</strong></div>
-              <div className="text-xs text-brand-grey">Scheduled Time: <strong className="text-brand-red">{bookingSuccess.formatted_time || bookingSuccess.slot_datetime}</strong></div>
+              <div className="text-sm text-brand-grey">Position: <strong className="text-brand-black">{bookingSuccess.job_title}</strong></div>
+              <div className="text-sm text-brand-grey">Scheduled Time: <strong className="text-brand-red">{bookingSuccess.formatted_time || bookingSuccess.slot_datetime}</strong></div>
             </div>
 
             <Button
@@ -201,14 +201,14 @@ END:VCALENDAR`;
               <h2 className="text-xl font-bold text-brand-black">
                 Hi {slotData.applicant_name}!
               </h2>
-              <p className="text-xs text-brand-grey mt-1">
+              <p className="text-sm text-brand-grey mt-1">
                 Please pick a convenient time slot for your interview for <strong>{slotData.job_title}</strong>.
               </p>
             </div>
 
             {/* Date Tabs */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-brand-grey mb-2">
+              <label className="block text-sm font-bold uppercase tracking-wider text-brand-grey mb-2">
                 1. Select Date
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -226,8 +226,8 @@ END:VCALENDAR`;
                         : 'bg-white border-gray-200 text-brand-grey hover:text-brand-black hover:bg-gray-50'
                     }`}
                   >
-                    <span className="text-xs font-bold block">{day.date_formatted.split(',')[0]}</span>
-                    <span className="text-[11px] opacity-80 block">{day.date_formatted.split(',')[1]}</span>
+                    <span className="text-sm font-bold block">{day.date_formatted.split(',')[0]}</span>
+                    <span className="text-[13px] opacity-80 block">{day.date_formatted.split(',')[1]}</span>
                   </button>
                 ))}
               </div>
@@ -235,7 +235,7 @@ END:VCALENDAR`;
 
             {/* Time Slot Buttons */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-brand-grey mb-2">
+              <label className="block text-sm font-bold uppercase tracking-wider text-brand-grey mb-2">
                 2. Select Available Time
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -247,7 +247,7 @@ END:VCALENDAR`;
                       key={slot.datetime}
                       type="button"
                       onClick={() => setSelectedSlot(slot)}
-                      className={`py-3 px-2 rounded-xl border text-xs font-heading font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      className={`py-3 px-2 rounded-xl border text-sm font-heading font-bold transition-all flex items-center justify-center gap-1.5 ${
                         isSelected
                           ? 'bg-emerald-600 border-emerald-500 text-brand-black shadow-lg shadow-emerald-600/30 scale-[1.02]'
                           : 'bg-white border-gray-200 text-gray-700 hover:text-brand-black hover:border-gray-300'
@@ -279,7 +279,7 @@ END:VCALENDAR`;
       </div>
 
       {/* Footer */}
-      <footer className="text-center text-[11px] text-slate-600 mt-8">
+      <footer className="text-center text-[13px] text-slate-600 mt-8">
         Powered by Standard Touch HR Operations
       </footer>
     </div>

@@ -27,14 +27,14 @@ export function MyInterviewsView({ interviews = [], onOpenFeedback, isLoading })
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-base font-bold text-brand-black tracking-tight">{item.applicant_name}</h3>
-                  <p className="text-xs text-brand-red font-semibold mt-0.5">{item.job_title}</p>
+                  <p className="text-sm text-brand-red font-semibold mt-0.5">{item.job_title}</p>
                 </div>
                 <Badge variant={item.status === 'Completed' ? 'success' : 'primary'}>
                   {item.status || 'Scheduled'}
                 </Badge>
               </div>
 
-              <div className="bg-gray-50/70 p-3 rounded-xl border border-gray-200 flex items-center gap-3 text-xs text-gray-700">
+              <div className="bg-gray-50/70 p-3 rounded-xl border border-gray-200 flex items-center gap-3 text-sm text-gray-700">
                 <Clock className="h-4 w-4 text-brand-red shrink-0" />
                 <span className="font-semibold">{formatDateTime(item.scheduled_on)}</span>
               </div>
@@ -45,13 +45,13 @@ export function MyInterviewsView({ interviews = [], onOpenFeedback, isLoading })
                     href={item.resume_attachment}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-grey hover:text-brand-red"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-grey hover:text-brand-red"
                   >
                     <FileText className="h-4 w-4" />
                     <span>View CV</span>
                   </a>
                 ) : (
-                  <span className="text-xs text-gray-500">No CV</span>
+                  <span className="text-sm text-gray-500">No CV</span>
                 )}
 
                 <Button

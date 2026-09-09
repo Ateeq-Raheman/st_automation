@@ -5,7 +5,15 @@ import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { formatCurrency, formatDate } from '../../api/client';
 
-export function ActiveLoansView({ onLaunchLoanWizard, company }) {
+const LOAN_STATUS_VARIANT = {
+  'Disbursed': 'success',
+  'Partially Disbursed': 'primary',
+  'Sanctioned': 'default',
+  'Loan Closure Requested': 'warning',
+  'Closed': 'default',
+};
+
+export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoading = false, onRefresh }) {
   const [isAssignStructureOpen, setIsAssignStructureOpen] = useState(false);
   return (
     <div className="space-y-6">
@@ -36,25 +44,64 @@ export function ActiveLoansView({ onLaunchLoanWizard, company }) {
         </div>
       </div>
 
-      <div className="glass-panel rounded-2xl border p-6 text-center space-y-3">
-        <div className="h-12 w-12 rounded-2xl bg-amber-950/60 text-amber-400 border border-amber-800/40 flex items-center justify-center mx-auto">
-          <CreditCard className="h-6 w-6" />
+      {isLoading ? (
+        <div className="glass-panel rounded-2xl border p-6 text-center text-sm text-brand-grey">
+          Loading loans…
         </div>
-        <h3 className="text-base font-bold text-brand-black">Active Loan Management</h3>
-        <p className="text-xs text-brand-grey max-w-md mx-auto">
-          Loans created here automatically link repayment schedules directly to monthly payroll runs.
-        </p>
-        <div className="pt-2">
-          <Button size="sm" variant="warning" onClick={onLaunchLoanWizard}>
-            New Loan Application
-          </Button>
+      ) : loans.length === 0 ? (
+        <div className="glass-panel rounded-2xl border p-6 text-center space-y-3">
+          <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto">
+            <CreditCard className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-bold text-brand-black">Active Loan Management</h3>
+          <p className="text-sm text-brand-grey max-w-md mx-auto">
+            Loans created here automatically link repayment schedules directly to monthly payroll runs.
+          </p>
+          <div className="pt-2">
+            <Button size="sm" variant="warning" onClick={onLaunchLoanWizard}>
+              New Loan Application
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="glass-panel rounded-2xl border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-[13px] font-bold uppercase tracking-wide text-brand-grey">
+                <th className="px-4 py-3">Employee</th>
+                <th className="px-4 py-3">Loan Amount</th>
+                <th className="px-4 py-3">Monthly EMI</th>
+                <th className="px-4 py-3">Tenure</th>
+                <th className="px-4 py-3">Disbursed</th>
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loans.map((loan) => (
+                <tr key={loan.name} className="border-b border-gray-100 last:border-0">
+                  <td className="px-4 py-3">
+                    <div className="font-bold text-brand-black">{loan.applicant_name || loan.applicant}</div>
+                    <div className="text-[13px] text-brand-grey">{loan.name}</div>
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-brand-black">{formatCurrency(loan.loan_amount)}</td>
+                  <td className="px-4 py-3 text-brand-grey">{formatCurrency(loan.monthly_repayment_amount)} / mo</td>
+                  <td className="px-4 py-3 text-brand-grey">{loan.repayment_periods} months</td>
+                  <td className="px-4 py-3 text-brand-grey">{formatDate(loan.disbursement_date || loan.posting_date)}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant={LOAN_STATUS_VARIANT[loan.status] || 'default'}>{loan.status}</Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <AssignSalaryStructureModal
         isOpen={isAssignStructureOpen}
         onClose={() => setIsAssignStructureOpen(false)}
         company={company}
+        onSuccess={onRefresh}
       />
     </div>
   );

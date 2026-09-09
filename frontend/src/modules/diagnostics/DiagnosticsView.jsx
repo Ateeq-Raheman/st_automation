@@ -10,11 +10,13 @@ export function DiagnosticsView({ healthData, isLoading, onRefresh, onAutoFix, i
   const checks = healthData?.checks || [];
   const isHealthy = healthData?.overall_status === 'healthy';
 
+  // Was `bg-*-950` (dark) + `text-*-400` (light) on every status — a
+  // dark-mode pair inside this light-themed app, rendering low-contrast.
   const statusIcons = {
-    pass: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-950/60 border-emerald-800/60' },
-    warning: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-950/60 border-amber-800/60' },
-    action_required: { icon: AlertCircle, color: 'text-rose-400', bg: 'bg-rose-950/60 border-rose-800/60' },
-    info: { icon: Activity, color: 'text-brand-red', bg: 'bg-indigo-950/60 border-indigo-800/60' },
+    pass: { icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
+    warning: { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
+    action_required: { icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-50 border-rose-200' },
+    info: { icon: Activity, color: 'text-brand-red', bg: 'bg-indigo-50 border-indigo-200' },
   };
 
   return (
@@ -40,17 +42,17 @@ export function DiagnosticsView({ healthData, isLoading, onRefresh, onAutoFix, i
 
       {/* Overall Health Banner */}
       <div className={`glass-panel rounded-3xl p-6 border ${
-        isHealthy ? 'border-emerald-500/40 bg-emerald-950/20' : 'border-amber-500/40 bg-amber-950/20'
+        isHealthy ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
       } flex items-center justify-between gap-4`}>
         <div className="flex items-center gap-4">
-          <div className={`p-3.5 rounded-2xl ${isHealthy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+          <div className={`p-3.5 rounded-2xl ${isHealthy ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
             {isHealthy ? <ShieldCheck className="h-7 w-7" /> : <AlertTriangle className="h-7 w-7" />}
           </div>
           <div>
             <h3 className="text-lg font-bold text-brand-black">
               {isHealthy ? 'All Systems Verified & Ready!' : 'Setup Action Items Detected'}
             </h3>
-            <p className="text-xs text-gray-700 mt-0.5">
+            <p className="text-sm text-gray-700 mt-0.5">
               {isHealthy 
                 ? 'Recruitment pipelines, loan self-healing, and payroll processors are fully configured.' 
                 : 'Some ERPNext settings require attention before running full payroll.'}
@@ -81,7 +83,7 @@ export function DiagnosticsView({ healthData, isLoading, onRefresh, onAutoFix, i
                       {check.category}
                     </Badge>
                   </div>
-                  <p className="text-xs text-brand-grey">{check.message}</p>
+                  <p className="text-sm text-brand-grey">{check.message}</p>
                 </div>
               </div>
 

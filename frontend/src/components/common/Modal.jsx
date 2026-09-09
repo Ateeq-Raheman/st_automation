@@ -28,11 +28,17 @@ export function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = '
 
       {/* Modal Container */}
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
-        <div 
-          className={`w-full ${maxWidth} transform overflow-hidden rounded-2xl bg-white border border-gray-200 p-6 text-left align-middle shadow-2xl transition-all animate-fade-in`}
+        <div
+          className={`w-full ${maxWidth} max-h-[85vh] flex flex-col transform rounded-2xl bg-white border border-gray-200 text-left align-middle shadow-2xl transition-all animate-fade-in`}
         >
-          {/* Header */}
-          <div className="flex items-start justify-between pb-4 border-b border-gray-200/80">
+          {/* Header — stays put; only the content below scrolls. Previously
+              the card relied on the page-level wrapper's own scroll to
+              reveal content taller than the viewport, which on some mobile
+              browsers left the bottom of a tall form (fields + submit
+              button) simply unreachable. Capping the card's own height and
+              scrolling its content internally is bulletproof regardless of
+              the outer wrapper's scroll behavior. */}
+          <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-200/80 shrink-0">
             <div>
               <h3 className="text-xl font-bold text-brand-black tracking-tight">{title}</h3>
               {subtitle && <p className="mt-1 text-sm text-brand-grey">{subtitle}</p>}
@@ -46,7 +52,7 @@ export function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = '
           </div>
 
           {/* Content */}
-          <div className="mt-4">
+          <div className="p-6 pt-4 overflow-y-auto">
             {children}
           </div>
         </div>

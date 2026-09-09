@@ -40,7 +40,7 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Overall Rating Stars */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-brand-grey mb-2">
+          <label className="block text-sm font-bold uppercase tracking-wider text-brand-grey mb-2">
             Overall Rating (1 to 5 Stars) *
           </label>
           <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
 
         {/* Recommendation Radios */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-brand-grey mb-2">
+          <label className="block text-sm font-bold uppercase tracking-wider text-brand-grey mb-2">
             Hiring Recommendation *
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -75,7 +75,7 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
                 key={opt.id}
                 type="button"
                 onClick={() => setRecommendation(opt.id)}
-                className={`p-3 rounded-xl border text-xs font-bold text-left transition-all flex items-center justify-between ${
+                className={`p-3 rounded-xl border text-sm font-bold text-left transition-all flex items-center justify-between ${
                   recommendation === opt.id
                     ? `${opt.color} text-brand-black shadow-lg`
                     : 'bg-gray-50 border-gray-200 text-brand-grey hover:text-brand-black'
@@ -91,11 +91,11 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
         {/* Sub-Criteria */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50/60 p-4 rounded-2xl border border-gray-200">
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5">Technical Competency</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Technical Competency</label>
             <select
               value={techRating}
               onChange={(e) => setTechRating(Number(e.target.value))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-brand-black focus:outline-none focus:border-brand-red"
+              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-brand-black focus:outline-none focus:border-brand-red"
             >
               <option value={5}>5 - Exceptional</option>
               <option value={4}>4 - Above Average</option>
@@ -106,11 +106,11 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5">Communication & Team Fit</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Communication & Team Fit</label>
             <select
               value={commRating}
               onChange={(e) => setCommRating(Number(e.target.value))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-brand-black focus:outline-none focus:border-brand-red"
+              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-brand-black focus:outline-none focus:border-brand-red"
             >
               <option value={5}>5 - Excellent</option>
               <option value={4}>4 - Good</option>
@@ -123,7 +123,7 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
 
         {/* Notes / Feedback */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-brand-grey mb-1.5">
+          <label className="block text-sm font-bold uppercase tracking-wider text-brand-grey mb-1.5">
             Key Feedback & Evaluation Notes *
           </label>
           <textarea
@@ -132,7 +132,7 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
             rows={3}
             value={comments}
             onChange={(e) => setComments(e.target.value)}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-brand-black focus:outline-none focus:border-brand-red"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-brand-black focus:outline-none focus:border-brand-red"
           />
         </div>
 
