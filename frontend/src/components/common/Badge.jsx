@@ -9,7 +9,7 @@ export function Badge({ variant = 'default', children, className = '' }) {
   // with the same light-surface pattern already used elsewhere in the app
   // (e.g. `bg-emerald-50 border-emerald-200 text-emerald-700`).
   const variantStyles = {
-    default: 'bg-gray-100 text-gray-700 border-gray-300',
+    default: 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 border-gray-300 dark:border-slate-600',
     primary: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     warning: 'bg-amber-50 text-amber-700 border-amber-200',

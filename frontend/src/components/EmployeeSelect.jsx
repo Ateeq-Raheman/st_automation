@@ -79,7 +79,7 @@ export default function EmployeeSelect({ value, onChange, className, multiple = 
         value={value}
         onChange={onChange}
         required={!multiple}
-        className={className || "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"}
+        className={className || "w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-brand-black dark:text-slate-50 focus:outline-none focus:border-brand-red"}
         disabled={loading}
       >
         <option value="">{loading ? 'Loading employees...' : 'Select an Employee'}</option>
@@ -98,22 +98,22 @@ export default function EmployeeSelect({ value, onChange, className, multiple = 
   return (
     <div className="relative w-full" ref={dropdownRef}>
       <div 
-        className={`w-full min-h-[46px] bg-white border ${isOpen ? 'border-brand-red ring-1 ring-brand-red' : 'border-gray-200'} rounded-xl px-3 py-2 text-sm text-brand-black cursor-pointer flex items-center justify-between transition-all`}
+        className={`w-full min-h-[46px] bg-white dark:bg-slate-800 border ${isOpen ? 'border-brand-red ring-1 ring-brand-red' : 'border-gray-200 dark:border-slate-700'} rounded-xl px-3 py-2 text-sm text-brand-black dark:text-slate-50 cursor-pointer flex items-center justify-between transition-all`}
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex flex-wrap gap-1.5 flex-1 pr-2">
           {currentValues.length === 0 && (
-            <span className="text-gray-400 font-normal select-none my-1 ml-1">{getDisplayText()}</span>
+            <span className="text-gray-400 dark:text-slate-500 font-normal select-none my-1 ml-1">{getDisplayText()}</span>
           )}
           {currentValues.map(empId => {
             const emp = employees.find(e => e.name === empId);
             if (!emp) return null;
             return (
-              <span key={empId} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 border border-gray-200 text-sm font-semibold text-gray-700">
+              <span key={empId} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-sm font-semibold text-gray-700 dark:text-slate-200">
                 {emp.employee_name}
                 <button 
                   onClick={(e) => removeValue(e, empId)}
-                  className="hover:bg-gray-200 rounded-full p-0.5 text-gray-500 hover:text-gray-700 transition-colors"
+                  className="hover:bg-gray-200 rounded-full p-0.5 text-gray-500 hover:text-gray-700 dark:text-slate-200 transition-colors"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -121,27 +121,27 @@ export default function EmployeeSelect({ value, onChange, className, multiple = 
             );
           })}
         </div>
-        <ChevronDown className={`h-4 w-4 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 text-gray-400 dark:text-slate-500 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
 
       {isOpen && (
-        <div className="absolute z-[100] mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto animate-fade-in py-1">
+        <div className="absolute z-[100] mt-1 w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl max-h-60 overflow-y-auto animate-fade-in py-1">
           {employees.map(emp => {
             const isSelected = currentValues.includes(emp.name);
             return (
               <div 
                 key={emp.name}
                 onClick={() => handleToggleOption(emp.name)}
-                className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${isSelected ? 'bg-red-50/50' : 'hover:bg-gray-50'}`}
+                className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${isSelected ? 'bg-red-50/50' : 'hover:bg-gray-50 dark:hover:bg-slate-700/50 dark:bg-slate-900'}`}
               >
-                <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-brand-red border-brand-red text-white' : 'border-gray-300 bg-white'}`}>
+                <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-brand-red border-brand-red text-white' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
                   {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
                 </div>
                 <div className="flex flex-col">
-                  <span className={`text-sm ${isSelected ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
+                  <span className={`text-sm ${isSelected ? 'font-bold text-gray-900 dark:text-slate-50' : 'font-medium text-gray-700 dark:text-slate-200'}`}>
                     {emp.employee_name}
                   </span>
-                  <span className="text-[12px] text-gray-500 font-normal">
+                  <span className="text-[12px] text-gray-500 dark:text-slate-400 font-normal">
                     {emp.name}
                   </span>
                 </div>
@@ -149,7 +149,7 @@ export default function EmployeeSelect({ value, onChange, className, multiple = 
             );
           })}
           {employees.length === 0 && !loading && (
-            <div className="px-4 py-3 text-sm text-gray-500 text-center">No active employees found</div>
+            <div className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400 text-center">No active employees found</div>
           )}
         </div>
       )}

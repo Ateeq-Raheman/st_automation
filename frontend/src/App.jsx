@@ -13,6 +13,7 @@ import { KanbanBoard } from './modules/recruitment/KanbanBoard';
 import { JobOpeningsView } from './modules/recruitment/JobOpeningsView';
 import { MyInterviewsView } from './modules/recruitment/MyInterviewsView';
 import { ApplicantDetailModal } from './modules/recruitment/ApplicantDetailModal';
+import { SelectCandidateModal } from './modules/recruitment/SelectCandidateModal';
 import { QuickAddApplicantModal } from './modules/recruitment/QuickAddApplicantModal';
 import { QuickAddJobOpeningModal } from './modules/recruitment/QuickAddJobOpeningModal';
 import { FeedbackScorecardModal } from './modules/recruitment/FeedbackScorecardModal';
@@ -52,6 +53,7 @@ export function AppContent() {
   // Recruitment Data
   const [pipelineData, setPipelineData] = useState(null);
   const [jobOpenings, setJobOpenings] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [myInterviews, setMyInterviews] = useState([]);
   const [selectedJob, setSelectedJob] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,6 +76,7 @@ export function AppContent() {
   const [openInSchedulingMode, setOpenInSchedulingMode] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isNewJobOpeningOpen, setIsNewJobOpeningOpen] = useState(false);
+  const [isSelectCandidateOpen, setIsSelectCandidateOpen] = useState(false);
   const [isQuickIncentiveOpen, setIsQuickIncentiveOpen] = useState(false);
   const [isBulkIncentiveOpen, setIsBulkIncentiveOpen] = useState(false);
   const [isLoanWizardOpen, setIsLoanWizardOpen] = useState(false);
@@ -121,13 +124,15 @@ export function AppContent() {
   const loadRecruitment = useCallback(async () => {
     setIsRecruitmentLoading(true);
     try {
-      const [pipeRes, jobsRes, intRes] = await Promise.all([
+      const [pipeRes, jobsRes, intRes, deptRes] = await Promise.all([
         recruitmentApi.getPipeline(selectedJob, searchQuery, selectedCompany),
         recruitmentApi.getJobOpenings(selectedCompany),
         recruitmentApi.getMyInterviews(),
+        recruitmentApi.getDepartments(selectedCompany),
       ]);
       setPipelineData(pipeRes.data);
       setJobOpenings(jobsRes.data?.job_openings || []);
+      setDepartments(deptRes.data?.departments || []);
       setMyInterviews(intRes.data?.interviews || []);
     } catch (err) {
       console.error('Error loading recruitment data', err);
@@ -347,7 +352,7 @@ export function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-brand-black flex overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-brand-black dark:text-slate-50 flex overflow-x-hidden">
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
@@ -405,6 +410,19 @@ export function AppContent() {
             <MyInterviewsView
               interviews={myInterviews}
               onOpenFeedback={(item) => setActiveInterviewForFeedback(item)}
+              onOpenCandidate={async (applicant_id) => {
+                try {
+                  const res = await recruitmentApi.getApplicant(applicant_id);
+                  if (res.data) {
+                    setActiveApplicant(res.data);
+                    setOpenInSchedulingMode(true);
+                  }
+                } catch (err) {
+                  console.error('Failed to load candidate', err);
+                  addToast('Failed to load candidate profile', 'error');
+                }
+              }}
+              onScheduleAdHoc={() => setIsSelectCandidateOpen(true)}
               isLoading={isRecruitmentLoading}
             />
           )}
@@ -484,6 +502,25 @@ export function AppContent() {
         initialSchedulingOpen={openInSchedulingMode}
       />
 
+      <SelectCandidateModal
+        isOpen={isSelectCandidateOpen}
+        onClose={() => setIsSelectCandidateOpen(false)}
+        company={selectedCompany}
+        onSelect={async (applicant_id) => {
+          setIsSelectCandidateOpen(false);
+          try {
+            const res = await recruitmentApi.getApplicant(applicant_id);
+            if (res.data) {
+              setActiveApplicant(res.data);
+              setOpenInSchedulingMode(true);
+            }
+          } catch (err) {
+            console.error('Failed to load candidate', err);
+            addToast('Failed to load candidate profile', 'error');
+          }
+        }}
+      />
+
       <QuickAddApplicantModal
         isOpen={isQuickAddOpen}
         onClose={() => setIsQuickAddOpen(false)}
@@ -497,6 +534,7 @@ export function AppContent() {
         onClose={() => setIsNewJobOpeningOpen(false)}
         onAdd={handleCreateJobOpening}
         isSubmitting={isActionLoading}
+        departments={departments}
       />
 
       <FeedbackScorecardModal

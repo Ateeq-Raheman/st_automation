@@ -14,27 +14,27 @@ export function TopHeader({
   const isRecruiter = userProfile?.is_recruiter || isHR;
 
   return (
-    <header className="h-16 bg-gray-50/70 backdrop-blur-xl border-b border-gray-200/80 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30">
+    <header className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-slate-700/80 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30">
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button */}
         <button
           onClick={() => setIsMobileOpen(true)}
-          className="lg:hidden p-2 rounded-xl text-brand-grey hover:bg-gray-100 hover:text-brand-black transition-colors"
+          className="lg:hidden p-2 rounded-xl text-brand-grey hover:bg-gray-100 dark:bg-slate-800 hover:text-brand-black dark:text-slate-50 transition-colors"
         >
           <Menu className="h-5 w-5" />
         </button>
 
         {/* Company Badge / Selector */}
         {userProfile?.companies && userProfile.companies.length > 1 ? (
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5">
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-1.5">
             <Building2 className="h-4 w-4 text-brand-red" />
             <select
               value={selectedCompany}
               onChange={(e) => setSelectedCompany(e.target.value)}
-              className="bg-transparent text-sm font-semibold text-brand-black focus:outline-none cursor-pointer"
+              className="bg-transparent text-sm font-semibold text-brand-black dark:text-slate-50 focus:outline-none cursor-pointer"
             >
               {userProfile.companies.map((c) => (
-                <option key={c.name} value={c.name} className="bg-white text-brand-black">
+                <option key={c.name} value={c.name} className="bg-white dark:bg-slate-800 text-brand-black dark:text-slate-50">
                   {c.company_name || c.name}
                 </option>
               ))}

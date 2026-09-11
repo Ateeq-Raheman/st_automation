@@ -52,17 +52,17 @@ export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, se
 
       {/* Sidebar Container */}
       <aside 
-        className={`fixed top-0 left-0 bottom-0 z-40 w-64 bg-gray-50/95 backdrop-blur-xl border-r border-gray-200/80 flex flex-col transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed top-0 left-0 bottom-0 z-40 w-64 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-r border-gray-200 dark:border-slate-700/80 flex flex-col transition-transform duration-200 lg:translate-x-0 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-200/80">
+        <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-200 dark:border-slate-700/80">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-brand-red to-red-700 flex items-center justify-center shadow-lg shadow-glow-red hover:from-orange-500 hover:to-brand-red transition-all duration-300">
             <Users2 className="h-5 w-5 text-white" />
           </div>
           <div className="flex flex-col justify-center gap-0.5">
-            <h1 className="font-bold text-brand-black tracking-tight leading-none text-[16px]">Standard Touch</h1>
+            <h1 className="font-bold text-brand-black dark:text-slate-50 tracking-tight leading-none text-[16px]">Standard Touch</h1>
             <span className="text-[11px] font-bold text-brand-red uppercase tracking-widest leading-none">HR Operations</span>
           </div>
         </div>
@@ -89,7 +89,7 @@ export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, se
                     className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-150 group cursor-pointer text-left ${
                       isActive 
                         ? 'bg-brand-red text-white shadow-lg shadow-glow-red' 
-                        : 'text-brand-grey hover:text-brand-black hover:bg-white/80'
+                        : 'text-brand-grey hover:text-brand-black dark:text-slate-50 hover:bg-white dark:bg-slate-800/80'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -106,13 +106,13 @@ export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, se
         </div>
 
         {/* User Info Footer */}
-        <div className="p-4 border-t border-gray-200/80 bg-gray-50/60">
+        <div className="p-4 border-t border-gray-200 dark:border-slate-700/80 bg-gray-50 dark:bg-slate-900/60">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center font-bold text-sm text-brand-red">
+            <div className="h-9 w-9 rounded-full bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 flex items-center justify-center font-bold text-sm text-brand-red">
               {userProfile?.full_name?.charAt(0) || 'U'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-brand-black truncate">{userProfile?.full_name || 'HR Team'}</p>
+              <p className="text-sm font-semibold text-brand-black dark:text-slate-50 truncate">{userProfile?.full_name || 'HR Team'}</p>
               <p className="text-xs text-brand-grey truncate">{userProfile?.email || 'Logged in'}</p>
             </div>
           </div>

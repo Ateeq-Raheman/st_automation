@@ -44,7 +44,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, color = 'i
       </div>
 
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-2xl sm:text-3xl font-heading font-bold text-brand-black tracking-tight">{value}</span>
+        <span className="text-2xl sm:text-3xl font-heading font-bold text-brand-black dark:text-slate-50 tracking-tight">{value}</span>
         {trend && (
           <span className="text-sm font-semibold text-emerald-600">
             {trend}

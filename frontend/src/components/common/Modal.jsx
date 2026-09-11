@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = 'max-w-2xl' }) {
@@ -18,7 +19,7 @@ export function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = '
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div 
@@ -29,34 +30,30 @@ export function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = '
       {/* Modal Container */}
       <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-6">
         <div
-          className={`w-full ${maxWidth} max-h-[85vh] flex flex-col transform rounded-2xl bg-white border border-gray-200 text-left align-middle shadow-2xl transition-all animate-fade-in`}
+          className={`w-full ${maxWidth} max-h-[85vh] flex flex-col transform rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-left align-middle shadow-2xl transition-all animate-fade-in`}
         >
-          {/* Header — stays put; only the content below scrolls. Previously
-              the card relied on the page-level wrapper's own scroll to
-              reveal content taller than the viewport, which on some mobile
-              browsers left the bottom of a tall form (fields + submit
-              button) simply unreachable. Capping the card's own height and
-              scrolling its content internally is bulletproof regardless of
-              the outer wrapper's scroll behavior. */}
-          <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-200/80 shrink-0">
+          {/* Header */}
+          <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-200 dark:border-slate-700/80 shrink-0">
             <div>
-              <h3 className="text-xl font-bold text-brand-black tracking-tight">{title}</h3>
+              <h3 className="text-xl font-bold text-brand-black dark:text-slate-50 tracking-tight">{title}</h3>
               {subtitle && <p className="mt-1 text-sm text-brand-grey">{subtitle}</p>}
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-brand-grey hover:bg-gray-100 hover:text-brand-black transition-colors"
+              className="rounded-lg p-1.5 text-brand-grey hover:bg-gray-100 dark:bg-slate-800 hover:text-brand-black dark:text-slate-50 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
           {/* Content */}
-          <div className="p-6 pt-4 overflow-y-auto">
+          <div className="p-6 pt-4 flex-1 overflow-y-auto min-h-0">
             {children}
           </div>
         </div>
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

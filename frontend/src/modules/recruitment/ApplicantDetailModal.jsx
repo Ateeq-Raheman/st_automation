@@ -46,19 +46,7 @@ export function ApplicantDetailModal({
     if (interviewRound === 2 || interviewRound === 3) {
       // Fetch any active employee to act as a default if none is selected
       if (selectedInterviewers.length === 0) {
-        window.frappe.call({
-          method: 'frappe.client.get_list',
-          args: {
-            doctype: 'Employee',
-            filters: { status: 'Active' },
-            limit_page_length: 1
-          },
-          callback: (r) => {
-            if (r.message && r.message.length > 0) {
-              setSelectedInterviewers([r.message[0].name]);
-            }
-          }
-        });
+      // Intentionally leaving blank so the user selects interviewers manually from EmployeeSelect.
       }
     } else {
       setSelectedInterviewers([]); // Clear for Round 1
@@ -178,14 +166,14 @@ export function ApplicantDetailModal({
     >
       <div className="space-y-6 pb-24">
         {/* Top Info Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
               <Mail className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <span className="text-[13px] font-semibold text-gray-500 block">Email Address</span>
-              <span className="text-sm font-bold text-gray-900 truncate block">{applicant.email_id || 'N/A'}</span>
+              <span className="text-[13px] font-semibold text-gray-500 dark:text-slate-400 block">Email Address</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-slate-50 truncate block">{applicant.email_id || 'N/A'}</span>
             </div>
           </div>
 
@@ -194,8 +182,8 @@ export function ApplicantDetailModal({
               <Phone className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <span className="text-[13px] font-semibold text-gray-500 block">Phone</span>
-              <span className="text-sm font-bold text-gray-900 truncate block">{applicant.phone_number || 'N/A'}</span>
+              <span className="text-[13px] font-semibold text-gray-500 dark:text-slate-400 block">Phone</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-slate-50 truncate block">{applicant.phone_number || 'N/A'}</span>
             </div>
           </div>
 
@@ -204,7 +192,7 @@ export function ApplicantDetailModal({
               <Calendar className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <span className="text-[13px] font-semibold text-gray-500 block">Current Stage</span>
+              <span className="text-[13px] font-semibold text-gray-500 dark:text-slate-400 block">Current Stage</span>
               <Badge variant="primary">{applicant.stage || applicant.status}</Badge>
             </div>
           </div>
@@ -212,24 +200,24 @@ export function ApplicantDetailModal({
 
         {/* Existing Scheduled Interviews */}
         {scheduledInterviews.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-4">
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-50 flex items-center gap-2 mb-4">
               <Calendar className="h-4 w-4 text-brand-red" />
               Scheduled Interviews
             </h3>
             <div className="space-y-3">
               {scheduledInterviews.map((iv) => (
-                <div key={iv.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                <div key={iv.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700">
                   <div>
-                    <span className="text-sm font-bold text-gray-900 block">{iv.name}</span>
-                    <span className="text-[13px] text-gray-500 mt-0.5 block flex items-center gap-1">
+                    <span className="text-sm font-bold text-gray-900 dark:text-slate-50 block">{iv.name}</span>
+                    <span className="text-[13px] text-gray-500 dark:text-slate-400 mt-0.5 block flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {formatDateTime(iv.scheduled_on)}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-right">
                     <div>
-                      <span className="text-[12px] uppercase font-bold text-gray-400 block mb-0.5">Interviewers</span>
+                      <span className="text-[12px] uppercase font-bold text-gray-400 dark:text-slate-500 block mb-0.5">Interviewers</span>
                       <div className="flex -space-x-2">
                         {iv.interviewers?.map((emp, i) => (
                           <div key={i} className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[12px] font-bold border-2 border-white ring-1 ring-gray-100" title={emp}>
@@ -250,13 +238,13 @@ export function ApplicantDetailModal({
 
         {/* Schedule 3-Round Interview Section (Shows if Shortlisted/Replied) */}
         {applicant.stage === 'Replied' && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
                   <Video className="h-4 w-4" />
                 </div>
-                <h3 className="text-sm font-bold text-gray-900">Schedule Interview Round</h3>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-slate-50">Schedule Interview Round</h3>
               </div>
               <Button 
                 variant="ghost" 
@@ -268,14 +256,14 @@ export function ApplicantDetailModal({
             </div>
 
             {isSchedulingOpen && (
-              <div className="space-y-4 animate-fade-in bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+              <div className="space-y-4 animate-fade-in bg-gray-50 dark:bg-slate-900/50 p-4 rounded-xl border border-gray-100 dark:border-slate-700">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Interview Round</label>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Interview Round</label>
                     <select
                       value={interviewRound}
                       onChange={(e) => setInterviewRound(Number(e.target.value))}
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 focus:border-brand-red focus:ring-brand-red outline-none"
+                      className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 dark:text-slate-50 focus:border-brand-red focus:ring-brand-red outline-none"
                     >
                       <option value={1}>Round 1 (Initial Interview)</option>
                       <option value={2}>Round 2 (Technical Interview)</option>
@@ -284,25 +272,25 @@ export function ApplicantDetailModal({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Scheduled Date & Time *</label>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Scheduled Date & Time *</label>
                     <input
                       type="datetime-local"
                       value={interviewTime}
                       onChange={(e) => setInterviewTime(e.target.value)}
-                      className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 focus:border-brand-red focus:ring-brand-red outline-none"
+                      className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 dark:text-slate-50 focus:border-brand-red focus:ring-brand-red outline-none"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5">Assign Interviewers * <span className="font-normal text-gray-400">(Hold Ctrl/Cmd to select multiple)</span></label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Assign Interviewers * <span className="font-normal text-gray-400 dark:text-slate-500">(Hold Ctrl/Cmd to select multiple)</span></label>
                   <EmployeeSelect 
                     value={selectedInterviewers}
                     onChange={setSelectedInterviewers}
                     multiple={true}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 focus:border-brand-red h-32"
+                    className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 dark:text-slate-50 focus:border-brand-red h-32"
                   />
-                  <p className="text-[12px] text-gray-500 mt-1 flex items-center gap-1">
+                  <p className="text-[12px] text-gray-500 dark:text-slate-400 mt-1 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     Calendar invites (.ics) will be automatically emailed to all selected interviewers.
                   </p>
@@ -338,7 +326,7 @@ export function ApplicantDetailModal({
 
             <button
               onClick={copyBookingLink}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-amber-100 text-amber-700 border border-amber-200 text-sm font-bold transition-colors shrink-0 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-100 text-amber-700 border border-amber-200 text-sm font-bold transition-colors shrink-0 shadow-sm"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
               <span>{copied ? 'Copied!' : 'Copy Link'}</span>
@@ -353,7 +341,7 @@ export function ApplicantDetailModal({
               <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
               <span>Interviewer Feedback Summary</span>
             </div>
-            <p className="text-sm text-gray-800 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+            <p className="text-sm text-gray-800 dark:text-slate-100 bg-white dark:bg-slate-800 p-3 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
               {applicant.interview_rating_summary}
             </p>
           </div>
@@ -362,7 +350,7 @@ export function ApplicantDetailModal({
         {/* Inline CV / Resume Viewer */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 flex items-center gap-2">
               <FileText className="h-4 w-4 text-brand-red" />
               <span>Resume / CV Document</span>
             </h4>
@@ -380,23 +368,23 @@ export function ApplicantDetailModal({
           </div>
 
           {applicant.resume_attachment ? (
-            <div className="h-[480px] w-full rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shadow-inner flex flex-col">
+            <div className="h-[480px] w-full rounded-2xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 overflow-hidden shadow-inner flex flex-col">
               <iframe
                 src={applicant.resume_attachment}
                 title="Candidate Resume"
-                className="w-full h-full border-0 bg-white"
+                className="w-full h-full border-0 bg-white dark:bg-slate-800"
               />
             </div>
           ) : (
-            <div className="py-12 text-center border border-dashed border-gray-200 rounded-2xl bg-gray-50/40">
-              <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-gray-500">No resume attached to this application</p>
+            <div className="py-12 text-center border border-dashed border-gray-200 dark:border-slate-700 rounded-2xl bg-gray-50 dark:bg-slate-900/40">
+              <FileText className="h-8 w-8 text-gray-400 dark:text-slate-500 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-gray-500 dark:text-slate-400">No resume attached to this application</p>
             </div>
           )}
         </div>
 
         {/* 1-Click Action Footer Bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-10 bg-white/95 backdrop-blur-md px-6 py-4 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
+        <div className="fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-slate-800/95 backdrop-blur-md px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
           {/* If Fresh Applied */}
           {applicant.stage === 'Open' && (
             <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -527,11 +515,11 @@ export function ApplicantDetailModal({
       {/* Decision Confirmation Modal */}
       {isDecisionOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-gray-900">
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">
               Confirm Hiring Decision: {selectedDecision}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               {selectedDecision === 'Select' && 'This will mark candidate as Selected and auto-draft a Job Offer.'}
               {selectedDecision === 'Bench' && 'This will move candidate to Talent Pool / Bench and send them a polite "keeping you in mind" email.'}
               {selectedDecision === 'Reconsider' && 'This will move the candidate back into the active pipeline so you can make a fresh Select / Bench / Reject decision for a new role.'}
@@ -539,13 +527,13 @@ export function ApplicantDetailModal({
             </p>
 
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Optional Notes / Reason</label>
+              <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1">Optional Notes / Reason</label>
               <textarea
                 value={decisionNotes}
                 onChange={(e) => setDecisionNotes(e.target.value)}
                 placeholder="Add any internal decision notes..."
                 rows={3}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-900 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+                className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 text-sm text-gray-900 dark:text-slate-50 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
               />
             </div>
 
@@ -578,22 +566,22 @@ export function ApplicantDetailModal({
           exactly as HR provided it. */}
       {isOfferLetterOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-gray-900">Send Offer Letter</h3>
-            <p className="text-sm text-gray-500">
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Send Offer Letter</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Upload the offer letter file to email to {applicant.applicant_name}. The exact file you upload here is what gets attached and sent.
             </p>
 
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Offer Letter File</label>
+              <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Offer Letter File</label>
               <input
                 type="file"
                 accept=".pdf,.doc,.docx"
                 onChange={(e) => setOfferLetterFile(e.target.files?.[0] || null)}
-                className="w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                className="w-full text-sm text-gray-700 dark:text-slate-200 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-gray-100 dark:bg-slate-800 file:text-gray-700 dark:text-slate-200 hover:file:bg-gray-200"
               />
               {offerLetterFile && (
-                <p className="mt-1.5 text-[13px] text-gray-500">Selected: {offerLetterFile.name}</p>
+                <p className="mt-1.5 text-[13px] text-gray-500 dark:text-slate-400">Selected: {offerLetterFile.name}</p>
               )}
             </div>
 

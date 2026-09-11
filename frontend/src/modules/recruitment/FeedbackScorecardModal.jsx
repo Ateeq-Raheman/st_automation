@@ -77,8 +77,8 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
                 onClick={() => setRecommendation(opt.id)}
                 className={`p-3 rounded-xl border text-sm font-bold text-left transition-all flex items-center justify-between ${
                   recommendation === opt.id
-                    ? `${opt.color} text-brand-black shadow-lg`
-                    : 'bg-gray-50 border-gray-200 text-brand-grey hover:text-brand-black'
+                    ? `${opt.color} text-brand-black dark:text-slate-50 shadow-lg`
+                    : 'bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-700 text-brand-grey hover:text-brand-black dark:text-slate-50'
                 }`}
               >
                 <span>{opt.label}</span>
@@ -89,13 +89,13 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
         </div>
 
         {/* Sub-Criteria */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50/60 p-4 rounded-2xl border border-gray-200">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-gray-200 dark:border-slate-700">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">Technical Competency</label>
+            <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Technical Competency</label>
             <select
               value={techRating}
               onChange={(e) => setTechRating(Number(e.target.value))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-brand-black focus:outline-none focus:border-brand-red"
+              className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold text-brand-black dark:text-slate-50 focus:outline-none focus:border-brand-red"
             >
               <option value={5}>5 - Exceptional</option>
               <option value={4}>4 - Above Average</option>
@@ -106,11 +106,11 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">Communication & Team Fit</label>
+            <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Communication & Team Fit</label>
             <select
               value={commRating}
               onChange={(e) => setCommRating(Number(e.target.value))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-brand-black focus:outline-none focus:border-brand-red"
+              className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-bold text-brand-black dark:text-slate-50 focus:outline-none focus:border-brand-red"
             >
               <option value={5}>5 - Excellent</option>
               <option value={4}>4 - Good</option>
@@ -132,11 +132,11 @@ export function FeedbackScorecardModal({ isOpen, onClose, interview, onSubmitFee
             rows={3}
             value={comments}
             onChange={(e) => setComments(e.target.value)}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-brand-black focus:outline-none focus:border-brand-red"
+            className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-3 text-sm text-brand-black dark:text-slate-50 focus:outline-none focus:border-brand-red"
           />
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
           <Button variant="ghost" type="button" onClick={onClose}>
             Cancel
           </Button>

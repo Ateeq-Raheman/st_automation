@@ -201,7 +201,7 @@ def shortlist_and_notify(applicant_id, notes=None):
 				)
 				email_sent = True
 			except Exception as mail_err:
-				frappe.log_error(f"Failed to send email to {doc.email_id}: {mail_err}", "st_automation Email")
+				frappe.log_error(title="st_automation Email", message=f"Failed to send email to {doc.email_id}: {mail_err}")
 
 		return success_response({
 			"applicant_id": applicant_id,
@@ -333,13 +333,13 @@ def book_slot(token, slot_datetime, interviewer=None):
 		interview_doc.job_applicant = doc.name
 		interview_doc.job_opening = doc.job_title
 		interview_doc.scheduled_on = slot_datetime
-		interview_doc.status = "Scheduled"
+		interview_doc.status = "Pending"
 		interview_doc.flags.ignore_permissions = True
 		interview_doc.flags.ignore_mandatory = True
 		try:
 			interview_doc.insert(ignore_permissions=True)
 		except Exception as int_err:
-			frappe.log_error(f"Interview creation note: {int_err}", "st_automation Interview")
+			frappe.log_error(title="st_automation Interview", message=f"Interview creation note: {int_err}")
 
 		# Update applicant status
 		doc.status = "Replied"
@@ -375,7 +375,7 @@ def book_slot(token, slot_datetime, interviewer=None):
 					now=True
 				)
 			except Exception as e:
-				frappe.log_error(f"Failed to send confirmation email: {e}", "st_automation Email")
+				frappe.log_error(title="st_automation Email", message=f"Failed to send confirmation email: {e}")
 
 		return success_response({
 			"applicant_name": doc.applicant_name,
@@ -462,6 +462,7 @@ def submit_guest_feedback():
     if rating:
         comment_text += f" (Rating: {rating})"
     interview.add_comment('Feedback', comment_text, comment_by=user_id)
+    interview.flags.ignore_mandatory = True
     interview.save(ignore_permissions=True)
     frappe.db.commit()
     return success_response(message='Feedback submitted successfully')
@@ -570,7 +571,7 @@ def schedule_interview_round(applicant_id, round_number, interviewers, scheduled
 			frappe.db.set_value("Interview", interview_doc.name, "feedback_token", json.dumps(feedback_token_map), update_modified=False)
 		except Exception:
 			# If field doesn't exist yet, just log and continue
-			frappe.log_error("feedback_token field not yet on Interview doctype. Please add it as a custom field.", "st_automation")
+			frappe.log_error(title="st_automation", message="feedback_token field not yet on Interview doctype. Please add it as a custom field.")
 
 		# Generate ICS and send emails
 		site_url = frappe.utils.get_url()
@@ -616,13 +617,79 @@ def schedule_interview_round(applicant_id, round_number, interviewers, scheduled
 					)
 					emails_sent += 1
 				except Exception as mail_err:
-					frappe.log_error(f"Failed to send interview email to {email}: {mail_err}", "st_automation Email")
+					frappe.log_error(title="st_automation Email", message=f"Failed to send interview email to {email}: {mail_err}")
 
 		frappe.db.commit()
 		return success_response(message=f"{round_name} scheduled successfully. Calendar invites sent to {len(interviewer_emails)} interviewers.")
 
 	except Exception as e:
 		return error_response(f"Error scheduling round {round_number}: {str(e)}", e)
+
+
+@frappe.whitelist()
+def get_applicant_details(applicant_id):
+	"""Returns the full applicant profile, used when opening the candidate modal directly."""
+	try:
+		if not frappe.db.exists("Job Applicant", applicant_id):
+			return error_response("Candidate not found.")
+
+		doc = frappe.get_doc("Job Applicant", applicant_id)
+		# Map basic fields
+		applicant = {
+			"name": doc.name,
+			"applicant_name": doc.applicant_name,
+			"email_id": doc.email_id,
+			"phone_number": doc.phone_number,
+			"job_title": doc.job_title,
+			"status": doc.status,
+			"stage": doc.status,
+			"creation": doc.creation,
+			"resume_attachment": doc.resume_attachment,
+			"booking_token": doc.booking_token,
+			"booking_token_expiry": doc.booking_token_expiry,
+			"talent_pool_tag": doc.talent_pool_tag,
+			"interview_rating_summary": doc.interview_rating_summary,
+			"booked_slot_time": doc.booked_slot_time,
+		}
+
+		if doc.email_id:
+			emp_name = frappe.db.get_value("Employee", {"personal_email": doc.email_id}, "name")
+			if emp_name:
+				applicant["employee"] = emp_name
+
+		# Generate booking URL if token exists
+		if doc.booking_token:
+			base_url = frappe.utils.get_url()
+			applicant["booking_url"] = f"{base_url}/hr-ops?token={doc.booking_token}"
+
+		return success_response(applicant)
+	except Exception as e:
+		return error_response("Error loading candidate profile", e)
+
+
+@frappe.whitelist()
+def get_active_candidates(company=None):
+	"""Returns candidates in the active 'Replied' stage for ad-hoc scheduling."""
+	try:
+		filters = {"status": "Replied"}
+		if company:
+			# Get jobs for this company
+			jobs = frappe.get_all("Job Opening", filters={"company": company}, pluck="name")
+			if jobs:
+				filters["job_title"] = ["in", jobs]
+			else:
+				# If company has no jobs, it has no candidates
+				return success_response({"candidates": []})
+				
+		candidates = frappe.get_all(
+			"Job Applicant",
+			filters=filters,
+			fields=["name", "applicant_name", "job_title", "email_id"],
+			order_by="creation desc"
+		)
+		return success_response({"candidates": candidates})
+	except Exception as e:
+		return error_response("Error loading active candidates", e)
 
 
 @frappe.whitelist()
@@ -732,7 +799,8 @@ def submit_interview_feedback(interview_id, rating, recommendation, comments, sc
 			return error_response("Interview ID is required.")
 
 		interview = frappe.get_doc("Interview", interview_id)
-		interview.status = "Completed"
+		interview.status = "Cleared"
+		interview.flags.ignore_mandatory = True
 		interview.save(ignore_permissions=True)
 
 		applicant_id = interview.job_applicant
@@ -756,7 +824,7 @@ def submit_interview_feedback(interview_id, rating, recommendation, comments, sc
 				fb.flags.ignore_mandatory = True
 				fb.insert(ignore_permissions=True)
 			except Exception as fb_err:
-				frappe.log_error(f"Interview feedback creation note: {fb_err}", "st_automation Feedback")
+				frappe.log_error(title="st_automation Feedback", message=f"Interview feedback creation note: {fb_err}")
 
 		frappe.db.commit()
 		return success_response(message="Feedback submitted successfully!")
@@ -794,6 +862,26 @@ def _resolve_designation(job_title):
 		new_desig.designation_name = job_title
 		new_desig.insert(ignore_permissions=True)
 		return job_title
+	except Exception:
+		return None
+
+def _resolve_department(department, company):
+	"""Auto-creates Department if it doesn't exist, handling the tree structure implicitly."""
+	if not department:
+		return None
+	if frappe.db.exists("Department", department):
+		return department
+	
+	existing = frappe.db.get_value("Department", {"department_name": department, "company": company}, "name")
+	if existing:
+		return existing
+		
+	try:
+		new_dept = frappe.new_doc("Department")
+		new_dept.department_name = department
+		new_dept.company = company
+		new_dept.insert(ignore_permissions=True)
+		return new_dept.name
 	except Exception:
 		return None
 
@@ -840,7 +928,7 @@ def record_decision(applicant_id, decision, notes=None, salary_offered=None, des
 					offer.flags.ignore_mandatory = True
 					offer.insert(ignore_permissions=True)
 				except Exception as offer_err:
-					frappe.log_error(f"Job offer draft note: {offer_err}", "st_automation Offer")
+					frappe.log_error(title="st_automation Offer", message=f"Job offer draft note: {offer_err}")
 
 			message = f"{doc.applicant_name} marked as SELECTED and Job Offer drafted!"
 
@@ -873,7 +961,7 @@ def record_decision(applicant_id, decision, notes=None, salary_offered=None, des
 						now=True
 					)
 				except Exception as mail_err:
-					frappe.log_error(f"Bench email note: {mail_err}", "st_automation Bench Email")
+					frappe.log_error(title="st_automation Bench Email", message=f"Bench email note: {mail_err}")
 
 			message = f"{doc.applicant_name} moved to Talent Pool / Bench and notified."
 
@@ -926,7 +1014,7 @@ def record_decision(applicant_id, decision, notes=None, salary_offered=None, des
 						now=True
 					)
 				except Exception as mail_err:
-					frappe.log_error(f"Rejection email note: {mail_err}", "st_automation Rejection Email")
+					frappe.log_error(title="st_automation Rejection Email", message=f"Rejection email note: {mail_err}")
 
 			message = f"{doc.applicant_name} marked as REJECTED and polite notification sent."
 
@@ -1006,7 +1094,9 @@ def create_job_opening(job_title, company, department=None, vacancies=1, publish
 		opening.vacancies = safe_int(vacancies, 1) or 1
 		opening.publish = 1 if cint(publish) else 0
 		if department:
-			opening.department = department
+			resolved_dept = _resolve_department(department, company)
+			if resolved_dept:
+				opening.department = resolved_dept
 		if description:
 			opening.description = description
 		opening.flags.ignore_permissions = True
@@ -1043,6 +1133,19 @@ def get_job_openings(company=None):
 		return success_response({"job_openings": openings})
 	except Exception as e:
 		return error_response("Error loading job openings", e)
+
+
+@frappe.whitelist()
+def get_departments(company=None):
+	"""Returns a list of all department names, optionally filtered by company."""
+	try:
+		filters = {}
+		if company:
+			filters["company"] = company
+		departments = frappe.get_all("Department", filters=filters, pluck="name")
+		return success_response({"departments": departments})
+	except Exception as e:
+		return error_response("Error loading departments", e)
 
 
 @frappe.whitelist()

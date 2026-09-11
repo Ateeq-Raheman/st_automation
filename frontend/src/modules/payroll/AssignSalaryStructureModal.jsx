@@ -84,12 +84,12 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
       <form onSubmit={handleSubmit} className="space-y-4 pt-2">
         {!employee && (
           <div>
-            <label className="block text-sm font-bold text-brand-black mb-1.5">Employee</label>
+            <label className="block text-sm font-bold text-brand-black dark:text-slate-50 mb-1.5">Employee</label>
             <select
               required
               value={formData.employee}
               onChange={(e) => setFormData(prev => ({ ...prev, employee: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+              className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
             >
               <option value="">Select Employee...</option>
               {employees.map(emp => (
@@ -102,14 +102,14 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
         )}
 
         <div>
-          <label className="block text-sm font-bold text-brand-black mb-1.5">Salary Structure</label>
+          <label className="block text-sm font-bold text-brand-black dark:text-slate-50 mb-1.5">Salary Structure</label>
           <div className="relative">
             <Building2 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-grey" />
             <select
               required
               value={formData.salary_structure}
               onChange={(e) => setFormData(prev => ({ ...prev, salary_structure: e.target.value }))}
-              className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-9 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+              className="w-full appearance-none bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-9 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
             >
               <option value="">Select Structure...</option>
               {structures.map(s => (
@@ -129,7 +129,7 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
               existed in this form before). Required here, not just at the
               DocType level, since silently defaulting to 0 is never a
               sensible value for a real salary. */}
-          <label className="block text-sm font-bold text-brand-black mb-1.5">Base Salary (Monthly)</label>
+          <label className="block text-sm font-bold text-brand-black dark:text-slate-50 mb-1.5">Base Salary (Monthly)</label>
           <div className="relative">
             <IndianRupee className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-grey" />
             <input
@@ -140,19 +140,19 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
               placeholder="e.g. 50000"
               value={formData.base}
               onChange={(e) => setFormData(prev => ({ ...prev, base: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+              className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-brand-black mb-1.5">From Date</label>
+          <label className="block text-sm font-bold text-brand-black dark:text-slate-50 mb-1.5">From Date</label>
           <input
             type="date"
             required
             value={formData.from_date}
             onChange={(e) => setFormData(prev => ({ ...prev, from_date: e.target.value }))}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+            className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
           />
         </div>
 

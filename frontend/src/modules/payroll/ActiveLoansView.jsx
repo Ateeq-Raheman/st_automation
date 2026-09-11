@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CreditCard, Plus, CheckCircle2, Clock, DollarSign, Building2 } from 'lucide-react';
 import { AssignSalaryStructureModal } from './AssignSalaryStructureModal';
+import { LoanDetailModal } from './LoanDetailModal';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { formatCurrency, formatDate } from '../../api/client';
@@ -15,11 +16,13 @@ const LOAN_STATUS_VARIANT = {
 
 export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoading = false, onRefresh }) {
   const [isAssignStructureOpen, setIsAssignStructureOpen] = useState(false);
+  const [selectedLoanId, setSelectedLoanId] = useState(null);
+  
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-heading font-bold text-brand-black tracking-tight">Loans & Advances</h2>
+          <h2 className="text-2xl font-heading font-bold text-brand-black dark:text-slate-50 tracking-tight">Loans & Advances</h2>
           <p className="text-sm text-brand-grey">
             Track active employee salary advances and automated payroll installments.
           </p>
@@ -53,7 +56,7 @@ export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoa
           <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto">
             <CreditCard className="h-6 w-6" />
           </div>
-          <h3 className="text-base font-bold text-brand-black">Active Loan Management</h3>
+          <h3 className="text-base font-bold text-brand-black dark:text-slate-50">Active Loan Management</h3>
           <p className="text-sm text-brand-grey max-w-md mx-auto">
             Loans created here automatically link repayment schedules directly to monthly payroll runs.
           </p>
@@ -67,7 +70,7 @@ export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoa
         <div className="glass-panel rounded-2xl border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200 text-left text-[13px] font-bold uppercase tracking-wide text-brand-grey">
+              <tr className="border-b border-gray-200 dark:border-slate-700 text-left text-[13px] font-bold uppercase tracking-wide text-brand-grey">
                 <th className="px-4 py-3">Employee</th>
                 <th className="px-4 py-3">Loan Amount</th>
                 <th className="px-4 py-3">Monthly EMI</th>
@@ -78,12 +81,16 @@ export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoa
             </thead>
             <tbody>
               {loans.map((loan) => (
-                <tr key={loan.name} className="border-b border-gray-100 last:border-0">
+                <tr 
+                  key={loan.name} 
+                  className="border-b border-gray-100 dark:border-slate-700 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                  onClick={() => setSelectedLoanId(loan.name)}
+                >
                   <td className="px-4 py-3">
-                    <div className="font-bold text-brand-black">{loan.applicant_name || loan.applicant}</div>
+                    <div className="font-bold text-brand-black dark:text-slate-50">{loan.applicant_name || loan.applicant}</div>
                     <div className="text-[13px] text-brand-grey">{loan.name}</div>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-brand-black">{formatCurrency(loan.loan_amount)}</td>
+                  <td className="px-4 py-3 font-semibold text-brand-black dark:text-slate-50">{formatCurrency(loan.loan_amount)}</td>
                   <td className="px-4 py-3 text-brand-grey">{formatCurrency(loan.monthly_repayment_amount)} / mo</td>
                   <td className="px-4 py-3 text-brand-grey">{loan.repayment_periods} months</td>
                   <td className="px-4 py-3 text-brand-grey">{formatDate(loan.disbursement_date || loan.posting_date)}</td>
@@ -102,6 +109,11 @@ export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoa
         onClose={() => setIsAssignStructureOpen(false)}
         company={company}
         onSuccess={onRefresh}
+      />
+      
+      <LoanDetailModal
+        loanId={selectedLoanId}
+        onClose={() => setSelectedLoanId(null)}
       />
     </div>
   );

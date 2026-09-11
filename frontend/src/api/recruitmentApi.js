@@ -42,6 +42,15 @@ export const recruitmentApi = {
   getJobOpenings: (company) =>
     callApi('st_automation.api.recruitment.get_job_openings', { company }, 'GET'),
 
+  getApplicant: (applicant_id) =>
+    callApi('st_automation.api.recruitment.get_applicant_details', { applicant_id }, 'GET'),
+
+  getActiveCandidates: (company) =>
+    callApi('st_automation.api.recruitment.get_active_candidates', { company }, 'GET'),
+
+  getDepartments: (company) =>
+    callApi('st_automation.api.recruitment.get_departments', { company }, 'GET'),
+
   createJobOpening: (jobTitle, company, department, vacancies, publish) =>
     callApi('st_automation.api.recruitment.create_job_opening', {
       job_title: jobTitle,

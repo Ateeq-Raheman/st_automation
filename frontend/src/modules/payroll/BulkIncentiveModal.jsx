@@ -44,7 +44,7 @@ export function BulkIncentiveModal({ isOpen, onClose, onBulkSubmit, isSubmitting
         <div className="overflow-x-auto max-h-[380px]">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-gray-200 text-brand-grey font-bold uppercase">
+              <tr className="border-b border-gray-200 dark:border-slate-700 text-brand-grey font-bold uppercase">
                 <th className="pb-2">Employee *</th>
                 <th className="pb-2">Amount (₹) *</th>
                 <th className="pb-2">Component</th>
@@ -59,7 +59,7 @@ export function BulkIncentiveModal({ isOpen, onClose, onBulkSubmit, isSubmitting
                     <EmployeeSelect
                       value={row.employee}
                       onChange={(e) => updateRow(idx, 'employee', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-brand-black focus:outline-none focus:border-brand-red"
+                      className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-brand-black dark:text-slate-50 focus:outline-none focus:border-brand-red"
                     />
                   </td>
                   <td className="py-2 pr-2">
@@ -69,14 +69,14 @@ export function BulkIncentiveModal({ isOpen, onClose, onBulkSubmit, isSubmitting
                       placeholder="5000"
                       value={row.amount}
                       onChange={(e) => updateRow(idx, 'amount', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-brand-black font-bold focus:outline-none focus:border-brand-red"
+                      className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-brand-black dark:text-slate-50 font-bold focus:outline-none focus:border-brand-red"
                     />
                   </td>
                   <td className="py-2 pr-2">
                     <select
                       value={row.component}
                       onChange={(e) => updateRow(idx, 'component', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"
+                      className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-sm text-brand-black dark:text-slate-50 focus:outline-none focus:border-brand-red"
                     >
                       <option value="Incentive">Incentive</option>
                       <option value="Performance Bonus">Bonus</option>
@@ -89,7 +89,7 @@ export function BulkIncentiveModal({ isOpen, onClose, onBulkSubmit, isSubmitting
                       placeholder="Optional note"
                       value={row.notes}
                       onChange={(e) => updateRow(idx, 'notes', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-brand-black focus:outline-none focus:border-brand-red"
+                      className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-brand-black dark:text-slate-50 focus:outline-none focus:border-brand-red"
                     />
                   </td>
                   <td className="py-2 text-right">
@@ -97,7 +97,7 @@ export function BulkIncentiveModal({ isOpen, onClose, onBulkSubmit, isSubmitting
                       <button
                         type="button"
                         onClick={() => removeRow(idx)}
-                        className="text-gray-500 hover:text-rose-400 p-1"
+                        className="text-gray-500 dark:text-slate-400 hover:text-rose-400 p-1"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -125,7 +125,7 @@ export function BulkIncentiveModal({ isOpen, onClose, onBulkSubmit, isSubmitting
           </span>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
           <Button variant="ghost" type="button" onClick={onClose}>
             Cancel
           </Button>

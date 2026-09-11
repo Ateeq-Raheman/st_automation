@@ -26,7 +26,7 @@ export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh 
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-heading font-bold text-brand-black tracking-tight">Salary Slips Hub</h2>
+          <h2 className="text-2xl font-heading font-bold text-brand-black dark:text-slate-50 tracking-tight">Salary Slips Hub</h2>
           <p className="text-sm text-brand-grey">
             Preview branded salary slips, verify net payout calculations, and deliver payslips.
           </p>
@@ -40,7 +40,7 @@ export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh 
             placeholder="Search employee name or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm font-semibold text-brand-black placeholder-slate-400 focus:outline-none focus:border-brand-red"
+            className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm font-semibold text-brand-black dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:border-brand-red"
           />
         </div>
       </div>
@@ -50,7 +50,7 @@ export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-gray-200 text-brand-grey font-bold uppercase bg-gray-50/60">
+              <tr className="border-b border-gray-200 dark:border-slate-700 text-brand-grey font-bold uppercase bg-gray-50 dark:bg-slate-900/60">
                 <th className="py-3 px-4">Employee</th>
                 <th className="py-3 px-4">Designation</th>
                 <th className="py-3 px-4">Period</th>
@@ -70,18 +70,18 @@ export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh 
                 </tr>
               ) : (
                 filteredSlips.map((slip) => (
-                  <tr key={slip.name} className="hover:bg-white/60 transition-colors">
+                  <tr key={slip.name} className="hover:bg-white dark:bg-slate-800/60 transition-colors">
                     <td className="py-3.5 px-4">
-                      <div className="font-bold text-brand-black text-sm">{slip.employee_name}</div>
+                      <div className="font-bold text-brand-black dark:text-slate-50 text-sm">{slip.employee_name}</div>
                       <div className="text-[13px] text-brand-grey">{slip.employee}</div>
                     </td>
-                    <td className="py-3.5 px-4 text-gray-700">
+                    <td className="py-3.5 px-4 text-gray-700 dark:text-slate-200">
                       {slip.designation || 'Staff'}
                     </td>
                     <td className="py-3.5 px-4 text-brand-grey text-[13px]">
                       {formatDate(slip.start_date)} - {formatDate(slip.end_date)}
                     </td>
-                    <td className="py-3.5 px-4 text-gray-700 font-semibold">
+                    <td className="py-3.5 px-4 text-gray-700 dark:text-slate-200 font-semibold">
                       {formatCurrency(slip.gross_pay)}
                     </td>
                     <td className="py-3.5 px-4 text-rose-600 font-semibold">
@@ -94,7 +94,7 @@ export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh 
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setSelectedSlipForPreview(slip)}
-                          className="p-1.5 rounded-lg bg-gray-100 text-brand-red hover:text-brand-black hover:bg-brand-red transition-colors"
+                          className="p-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 text-brand-red hover:text-brand-black dark:text-slate-50 hover:bg-brand-red transition-colors"
                           title="Preview Salary Slip PDF"
                         >
                           <Eye className="h-4 w-4" />
@@ -103,7 +103,7 @@ export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh 
                           href={slip.pdf_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="p-1.5 rounded-lg bg-gray-100 text-brand-grey hover:text-brand-black hover:bg-gray-200 transition-colors"
+                          className="p-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 text-brand-grey hover:text-brand-black dark:text-slate-50 hover:bg-gray-200 transition-colors"
                           title="Print / View Slip"
                         >
                           <Eye className="h-4 w-4" />
@@ -128,11 +128,11 @@ export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh 
           maxWidth="max-w-4xl"
         >
           <div className="space-y-4">
-            <div className="h-[600px] w-full rounded-xl bg-gray-50 border border-gray-200 overflow-hidden">
+            <div className="h-[600px] w-full rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 overflow-hidden">
               <iframe
                 src={selectedSlipForPreview.pdf_url}
                 title="Salary Slip PDF"
-                className="w-full h-full border-0 bg-white"
+                className="w-full h-full border-0 bg-white dark:bg-slate-800"
               />
             </div>
 

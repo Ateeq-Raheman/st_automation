@@ -64,12 +64,12 @@ export default function InterviewFeedback() {
   if (status === 'success') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-10 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="h-9 w-9 text-emerald-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Feedback Submitted!</h1>
-          <p className="text-gray-500">Thank you. Your feedback has been recorded in the HR system and attributed to your name.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-50 mb-2">Feedback Submitted!</h1>
+          <p className="text-gray-500 dark:text-slate-400">Thank you. Your feedback has been recorded in the HR system and attributed to your name.</p>
         </div>
       </div>
     );
@@ -78,13 +78,13 @@ export default function InterviewFeedback() {
   if (status === 'error') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-rose-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-10 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="h-9 w-9 text-red-500" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Link</h1>
-          <p className="text-gray-500">{errorMsg}</p>
-          <p className="text-sm text-gray-400 mt-4">If you believe this is an error, please contact the HR team directly.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-50 mb-2">Invalid Link</h1>
+          <p className="text-gray-500 dark:text-slate-400">{errorMsg}</p>
+          <p className="text-sm text-gray-400 dark:text-slate-500 mt-4">If you believe this is an error, please contact the HR team directly.</p>
         </div>
       </div>
     );
@@ -92,11 +92,11 @@ export default function InterviewFeedback() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-white dark:bg-slate-800/20 rounded-xl flex items-center justify-center">
               <span className="text-xl">🎯</span>
             </div>
             <span className="text-sm font-semibold text-indigo-200 uppercase tracking-wide">Standard Touch HR</span>
@@ -109,7 +109,7 @@ export default function InterviewFeedback() {
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           {/* Star Rating */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3">Overall Rating</label>
+            <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-3">Overall Rating</label>
             <div className="flex items-center gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
@@ -130,7 +130,7 @@ export default function InterviewFeedback() {
                 </button>
               ))}
               {rating > 0 && (
-                <span className="ml-2 text-sm font-semibold text-gray-600">
+                <span className="ml-2 text-sm font-semibold text-gray-600 dark:text-slate-300">
                   {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][rating]}
                 </span>
               )}
@@ -139,7 +139,7 @@ export default function InterviewFeedback() {
 
           {/* Feedback Text */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">
+            <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-2">
               Your Feedback <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -147,14 +147,14 @@ export default function InterviewFeedback() {
               onChange={(e) => setFeedback(e.target.value)}
               placeholder="Share your honest assessment of the candidate — communication skills, technical ability, cultural fit, red flags, or anything else relevant..."
               rows={6}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent placeholder-gray-400"
+              className="w-full border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-slate-50 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent placeholder-gray-400"
               required
             />
           </div>
 
           {/* Recommendation */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Recommendation</label>
+            <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-2">Recommendation</label>
             <div className="grid grid-cols-3 gap-3">
               {['Strongly Recommend', 'Neutral', 'Do Not Recommend'].map((option) => (
                 <button
@@ -164,7 +164,7 @@ export default function InterviewFeedback() {
                   className={`px-3 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
                     feedback.startsWith(`[${option}]`)
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-400'
+                      : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:border-gray-400'
                   }`}
                 >
                   {option}
@@ -192,7 +192,7 @@ export default function InterviewFeedback() {
             )}
           </button>
 
-          <p className="text-center text-sm text-gray-400">
+          <p className="text-center text-sm text-gray-400 dark:text-slate-500">
             This link is unique to you and can only be used once. Your submission will be attributed to your employee profile.
           </p>
         </form>

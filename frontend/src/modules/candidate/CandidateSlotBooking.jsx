@@ -127,7 +127,7 @@ END:VCALENDAR`;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 text-brand-black flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-brand-black dark:text-slate-50 flex items-center justify-center p-4">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 rounded-full border-4 border-brand-red border-t-transparent animate-spin mx-auto" />
           <p className="text-sm font-semibold text-brand-grey">Loading interview calendar...</p>
@@ -137,12 +137,12 @@ END:VCALENDAR`;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-brand-black flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-brand-black dark:text-slate-50 flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-xl w-full mx-auto space-y-6">
         
         {/* Internal Navigation (only useful when previewing in admin app) */}
         <div className="flex justify-start">
-           <Button variant="outline" size="sm" onClick={() => window.location.href = '/hr-ops'} className="gap-1.5 border-gray-200 text-brand-grey hover:text-brand-black bg-white rounded-xl shadow-sm">
+           <Button variant="outline" size="sm" onClick={() => window.location.href = '/hr-ops'} className="gap-1.5 border-gray-200 dark:border-slate-700 text-brand-grey hover:text-brand-black dark:text-slate-50 bg-white dark:bg-slate-800 rounded-xl shadow-sm">
              <ChevronLeft className="h-4 w-4" /> Back to Dashboard
            </Button>
         </div>
@@ -152,7 +152,7 @@ END:VCALENDAR`;
           <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-brand-red to-red-700 flex items-center justify-center shadow-lg shadow-glow-red mx-auto">
             <Sparkles className="h-6 w-6 text-white" />
           </div>
-          <h1 className="text-2xl font-heading font-bold text-brand-black tracking-tight">Standard Touch</h1>
+          <h1 className="text-2xl font-heading font-bold text-brand-black dark:text-slate-50 tracking-tight">Standard Touch</h1>
           <p className="text-sm font-bold text-brand-red uppercase tracking-widest">Candidate Interview Scheduler</p>
         </div>
 
@@ -160,7 +160,7 @@ END:VCALENDAR`;
         {error && (
           <div className="glass-panel border-rose-200 bg-rose-50 rounded-2xl p-5 text-center space-y-3">
             <AlertCircle className="h-8 w-8 text-rose-600 mx-auto" />
-            <h3 className="text-base font-bold text-brand-black">Booking Link Notice</h3>
+            <h3 className="text-base font-bold text-brand-black dark:text-slate-50">Booking Link Notice</h3>
             <p className="text-sm text-rose-700">{error}</p>
           </div>
         )}
@@ -173,14 +173,14 @@ END:VCALENDAR`;
             </div>
 
             <div className="space-y-2">
-              <h2 className="text-2xl font-heading font-bold text-brand-black">Interview Confirmed!</h2>
+              <h2 className="text-2xl font-heading font-bold text-brand-black dark:text-slate-50">Interview Confirmed!</h2>
               <p className="text-sm text-emerald-700">
-                We're excited to speak with you, <span className="font-bold text-brand-black">{bookingSuccess.applicant_name}</span>.
+                We're excited to speak with you, <span className="font-bold text-brand-black dark:text-slate-50">{bookingSuccess.applicant_name}</span>.
               </p>
             </div>
 
-            <div className="bg-gray-50/80 rounded-2xl p-5 border border-gray-200 space-y-2 text-left">
-              <div className="text-sm text-brand-grey">Position: <strong className="text-brand-black">{bookingSuccess.job_title}</strong></div>
+            <div className="bg-gray-50 dark:bg-slate-900/80 rounded-2xl p-5 border border-gray-200 dark:border-slate-700 space-y-2 text-left">
+              <div className="text-sm text-brand-grey">Position: <strong className="text-brand-black dark:text-slate-50">{bookingSuccess.job_title}</strong></div>
               <div className="text-sm text-brand-grey">Scheduled Time: <strong className="text-brand-red">{bookingSuccess.formatted_time || bookingSuccess.slot_datetime}</strong></div>
             </div>
 
@@ -197,8 +197,8 @@ END:VCALENDAR`;
           /* Slot Selection Wizard */
           <div className="glass-panel rounded-3xl p-6 sm:p-8 border space-y-6 shadow-2xl">
             {/* Candidate Welcome Banner */}
-            <div className="border-b border-gray-200 pb-4">
-              <h2 className="text-xl font-bold text-brand-black">
+            <div className="border-b border-gray-200 dark:border-slate-700 pb-4">
+              <h2 className="text-xl font-bold text-brand-black dark:text-slate-50">
                 Hi {slotData.applicant_name}!
               </h2>
               <p className="text-sm text-brand-grey mt-1">
@@ -222,8 +222,8 @@ END:VCALENDAR`;
                     }}
                     className={`p-3 rounded-2xl border text-center transition-all ${
                       selectedDateIndex === idx
-                        ? 'bg-brand-red border-brand-red text-brand-black shadow-lg shadow-glow-red'
-                        : 'bg-white border-gray-200 text-brand-grey hover:text-brand-black hover:bg-gray-50'
+                        ? 'bg-brand-red border-brand-red text-brand-black dark:text-slate-50 shadow-lg shadow-glow-red'
+                        : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-brand-grey hover:text-brand-black dark:text-slate-50 hover:bg-gray-50 dark:hover:bg-slate-700/50 dark:bg-slate-900'
                     }`}
                   >
                     <span className="text-sm font-bold block">{day.date_formatted.split(',')[0]}</span>
@@ -249,8 +249,8 @@ END:VCALENDAR`;
                       onClick={() => setSelectedSlot(slot)}
                       className={`py-3 px-2 rounded-xl border text-sm font-heading font-bold transition-all flex items-center justify-center gap-1.5 ${
                         isSelected
-                          ? 'bg-emerald-600 border-emerald-500 text-brand-black shadow-lg shadow-emerald-600/30 scale-[1.02]'
-                          : 'bg-white border-gray-200 text-gray-700 hover:text-brand-black hover:border-gray-300'
+                          ? 'bg-emerald-600 border-emerald-500 text-brand-black dark:text-slate-50 shadow-lg shadow-emerald-600/30 scale-[1.02]'
+                          : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-700 hover:text-brand-black dark:text-slate-50 hover:border-gray-300 dark:border-slate-600'
                       }`}
                     >
                       <Clock className="h-3.5 w-3.5" />
@@ -262,7 +262,7 @@ END:VCALENDAR`;
             </div>
 
             {/* Confirm Button */}
-            <div className="pt-4 border-t border-gray-200">
+            <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
               <Button
                 variant="success"
                 size="lg"
