@@ -1290,6 +1290,7 @@ def onboard_candidate(applicant_id):
 		emp.designation = _resolve_designation(app_doc.job_title)
 		
 		emp.company = _get_default_company()
+		emp.job_applicant = applicant_id
 		
 		emp.flags.ignore_mandatory = True
 		emp.insert(ignore_permissions=True)
