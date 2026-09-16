@@ -18,6 +18,10 @@ import { ExitPipelineView } from './modules/exit/ExitPipelineView';
 import { ExitStatusPage } from './modules/exit/ExitStatusPage';
 import { StartSeparationModal } from './modules/exit/StartSeparationModal';
 
+// Templates Views
+import { TemplateListPage } from './modules/templates/TemplateListPage';
+import { TemplateFormPage } from './modules/templates/TemplateFormPage';
+
 // Recruitment Views & Modals
 import { KanbanBoard } from './modules/recruitment/KanbanBoard';
 import { JobOpeningsView } from './modules/recruitment/JobOpeningsView';
@@ -101,6 +105,9 @@ export function AppContent() {
   const [isStartSeparationOpen, setIsStartSeparationOpen] = useState(false);
   const [activeInterviewForFeedback, setActiveInterviewForFeedback] = useState(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
+
+  // Template State
+  const [editingTemplate, setEditingTemplate] = useState({ type: null, name: null });
 
   // Detect Public Candidate Route or Interview Feedback Route
   useEffect(() => {
@@ -504,6 +511,22 @@ export function AppContent() {
               onRefresh={loadExit}
               onStartSeparation={() => setIsStartSeparationOpen(true)}
             />
+          )}
+
+          {/* Templates Views */}
+          {activeTab === 'templates' && (
+            editingTemplate.type ? (
+              <TemplateFormPage
+                templateType={editingTemplate.type}
+                templateName={editingTemplate.name}
+                onBack={() => setEditingTemplate({ type: null, name: null })}
+              />
+            ) : (
+              <TemplateListPage
+                onCreate={(type) => setEditingTemplate({ type, name: null })}
+                onEdit={(type, name) => setEditingTemplate({ type, name })}
+              />
+            )
           )}
 
           {/* Payroll Views */}

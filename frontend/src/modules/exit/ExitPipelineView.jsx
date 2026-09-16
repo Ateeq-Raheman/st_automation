@@ -322,13 +322,19 @@ export function ExitPipelineView({ pipelineData, isLoading, onRefresh, onStartSe
                                       Assign
                                     </button>
                                   )}
-                                  <button
-                                    onClick={() => handleCompleteStage(sep.name, task.name)}
-                                    disabled={isActionLoading}
-                                    className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors shadow-sm disabled:opacity-50"
-                                  >
-                                    Mark Complete
-                                  </button>
+                                  {task.assigned_to?.length > 0 ? (
+                                    <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600">
+                                      Waiting on Assignee
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleCompleteStage(sep.name, task.name)}
+                                      disabled={isActionLoading}
+                                      className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors shadow-sm disabled:opacity-50"
+                                    >
+                                      Mark Complete
+                                    </button>
+                                  )}
                                 </>
                               )}
                               {isCompleted && (
