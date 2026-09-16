@@ -102,7 +102,7 @@ export function ExitPipelineView({ pipelineData, isLoading, onRefresh, onStartSe
     navigator.clipboard.writeText(text).then(() => addToast('Link copied!', 'info'));
   };
 
-  if (isLoading) {
+  if (isLoading && !pipelineData) {
     return (
       <div className="space-y-4">
         {[1,2,3].map(i => (
