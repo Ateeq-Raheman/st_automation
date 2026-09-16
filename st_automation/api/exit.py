@@ -165,6 +165,15 @@ def start_separation(employee, template=None, resignation_date=None, relieving_d
 
         sep.flags.ignore_mandatory = True
         sep.insert(ignore_permissions=True, ignore_mandatory=True)
+
+        # Workaround for standard ERPNext duplicate Project error
+        # ERPNext hardcodes project name to "Employee Separation : {employee}".
+        # If an old project exists, it will throw an IntegrityError.
+        expected_project_name = f"Employee Separation : {employee}"
+        if frappe.db.exists("Project", expected_project_name):
+            old_proj = frappe.get_doc("Project", expected_project_name)
+            old_proj.db_set("project_name", f"{expected_project_name} - Old - {frappe.utils.now_datetime().strftime('%Y%m%d%H%M%S')}")
+
         sep.submit()
         frappe.db.commit()
 
@@ -208,12 +217,6 @@ def complete_stage(separation, task_name, record_type="exit"):
 
         if task.status == "Completed":
             return error_response("Task is already completed.")
-
-        # Check if the task is explicitly assigned to someone else
-        if frappe.session.user != "Administrator":
-            allocations = frappe.get_all("ToDo", filters={"reference_type": "Task", "reference_name": task_name, "status": "Open"}, pluck="allocated_to")
-            if allocations and frappe.session.user not in allocations:
-                return error_response(f"This task is assigned to {', '.join(allocations)}. Only they can mark it as completed.")
 
         # Asset return validation
         if "asset" in task.subject.lower() and "return" in task.subject.lower():

@@ -233,27 +233,37 @@ export function TemplateFormPage({ templateType, templateName, onBack }) {
                     />
                   </div>
                   
-                  <div className="col-span-6 md:col-span-4">
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Assign To (User / Role)</label>
-                    <div className="flex gap-2">
-                      <select
-                        value={act.user}
-                        onChange={e => updateActivity(index, 'user', e.target.value)}
-                        className="w-1/2 px-2 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-red"
-                      >
-                        <option value="">Specific User...</option>
-                        {options.users.map(u => <option key={u.name} value={u.name}>{u.full_name || u.name}</option>)}
-                      </select>
-                      <select
-                        value={act.role}
-                        onChange={e => updateActivity(index, 'role', e.target.value)}
-                        className="w-1/2 px-2 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-red"
-                      >
-                        <option value="">Or Role...</option>
-                        {options.roles.map(r => <option key={r.name} value={r.name}>{r.role_name}</option>)}
-                      </select>
+                  {templateType === 'Onboarding' ? (
+                    <div className="col-span-6 md:col-span-4">
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Assign To (User / Role)</label>
+                      <div className="flex gap-2">
+                        <select
+                          value={act.user}
+                          onChange={e => updateActivity(index, 'user', e.target.value)}
+                          className="w-1/2 px-2 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-red"
+                        >
+                          <option value="">Specific User...</option>
+                          {options.users.map(u => <option key={u.name} value={u.name}>{u.full_name || u.name}</option>)}
+                        </select>
+                        <select
+                          value={act.role}
+                          onChange={e => updateActivity(index, 'role', e.target.value)}
+                          className="w-1/2 px-2 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-red"
+                        >
+                          <option value="">Or Role...</option>
+                          {options.roles.map(r => <option key={r.name} value={r.name}>{r.role_name}</option>)}
+                        </select>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="col-span-6 md:col-span-4">
+                      {/* Placeholder to keep layout consistent, but no assignment needed */}
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Assigned To</label>
+                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-500 font-medium">
+                        HR Manager (Auto)
+                      </div>
+                    </div>
+                  )}
 
                   <div className="col-span-6 md:col-span-3 flex gap-2">
                     <div className="w-1/2">
