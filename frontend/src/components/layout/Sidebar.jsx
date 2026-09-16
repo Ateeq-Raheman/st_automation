@@ -2,7 +2,8 @@ import React from 'react';
 import { 
   Users, Briefcase, CalendarCheck, 
   DollarSign, PlayCircle, Gift, CreditCard, 
-  FileText, Activity, ExternalLink, Users2
+  FileText, Activity, ExternalLink, Users2,
+  UserPlus, UserMinus
 } from 'lucide-react';
 
 export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, setIsMobileOpen }) {
@@ -22,6 +23,14 @@ export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, se
       ]
     },
     {
+      title: 'Onboarding & Separation',
+      visible: isHR,
+      items: [
+        { id: 'onboarding-pipeline', label: 'Onboarding Pipeline', icon: UserPlus, visible: isHR },
+        { id: 'exit-pipeline', label: 'Exit Pipeline', icon: UserMinus, visible: isHR },
+      ]
+    },
+    {
       title: 'Payroll & Finance',
       visible: isHR || isEmployee,
       items: [
@@ -35,6 +44,7 @@ export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, se
       title: 'System & Tools',
       visible: true,
       items: [
+        { id: 'templates', label: 'Template Management', icon: FileText, visible: isHR },
         { id: 'diagnostics', label: 'System Readiness', icon: Activity, visible: isHR },
       ]
     }

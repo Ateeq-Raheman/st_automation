@@ -1,17 +1,20 @@
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+from st_automation.templates_setup import create_default_templates
 
 
 def after_install():
 	"""Runs automatically when the app is installed on a site."""
 	setup_custom_fields()
 	setup_default_settings()
+	create_default_templates()
 
 
 def after_migrate():
 	"""Runs automatically after bench migrate."""
 	setup_custom_fields()
 	setup_default_settings()
+	create_default_templates()
 
 
 def setup_custom_fields():
@@ -20,6 +23,59 @@ def setup_custom_fields():
 	without requiring manual intervention.
 	"""
 	custom_fields = {
+		"Employee": [
+			{
+				"fieldname": "onboarding_status_token",
+				"label": "Onboarding Token",
+				"fieldtype": "Data",
+				"insert_after": "status",
+				"read_only": 1,
+				"no_copy": 1,
+			},
+			{
+				"fieldname": "onboarding_status_token_expiry",
+				"label": "Onboarding Token Expiry",
+				"fieldtype": "Datetime",
+				"insert_after": "onboarding_status_token",
+				"read_only": 1,
+			},
+			{
+				"fieldname": "probation_end_date",
+				"label": "Probation End Date",
+				"fieldtype": "Date",
+				"insert_after": "date_of_joining",
+			},
+			{
+				"fieldname": "biometric_enrolled",
+				"label": "Biometric Enrolled",
+				"fieldtype": "Check",
+				"insert_after": "probation_end_date",
+			}
+		],
+		"Employee Separation": [
+			{
+				"fieldname": "exit_status_token",
+				"label": "Exit Status Token",
+				"fieldtype": "Data",
+				"insert_after": "status",
+				"read_only": 1,
+				"no_copy": 1,
+			},
+			{
+				"fieldname": "exit_status_token_expiry",
+				"label": "Exit Status Token Expiry",
+				"fieldtype": "Datetime",
+				"insert_after": "exit_status_token",
+				"read_only": 1,
+			},
+			{
+				"fieldname": "rehire_eligible",
+				"label": "Eligible for Rehire",
+				"fieldtype": "Select",
+				"options": "\\nYes\\nNo",
+				"insert_after": "exit_status_token_expiry",
+			}
+		],
 		"Job Applicant": [
 			{
 				"fieldname": "st_section_booking",

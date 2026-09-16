@@ -36,8 +36,22 @@ fixtures = [
 	{
 		"dt": "Custom Field",
 		"filters": [
-			["dt", "in", ["Job Applicant", "Job Opening", "Company"]],
-			["fieldname", "in", ["booking_token", "booking_token_expiry", "talent_pool_tag", "interview_rating_summary", "booked_slot_time", "interview_duration_mins", "default_interviewer"]]
+			["dt", "in", ["Job Applicant", "Job Opening", "Company", "Employee", "Employee Separation"]],
+			["fieldname", "in", [
+				"booking_token", "booking_token_expiry", "talent_pool_tag", "interview_rating_summary", 
+				"booked_slot_time", "interview_duration_mins", "default_interviewer",
+				"onboarding_status_token", "onboarding_status_token_expiry", "probation_end_date", "biometric_enrolled",
+				"exit_status_token", "exit_status_token_expiry", "rehire_eligible"
+			]]
 		]
 	}
 ]
+
+doc_events = {
+	"Employee": {
+		"after_insert": "st_automation.api.onboarding.on_employee_creation"
+	},
+	"Employee Separation": {
+		"on_submit": "st_automation.api.exit.on_separation_submit"
+	}
+}
