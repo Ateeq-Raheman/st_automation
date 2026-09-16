@@ -27,16 +27,20 @@ export const payrollApi = {
       loan_product: loanProduct,
     }, 'GET'),
   
-  createLoanAndDisburse: (employee, amount, tenureMonths, monthlyAmount, loanProduct, customMoratorium = 0, disbursementDate = null) =>
+  createLoan: (employee, amount, tenure_months, monthly_repayment_amount, loan_product, custom_moratorium = 0, disbursement_date = null, disburse = 1) =>
     callApi('st_automation.api.payroll.create_loan_and_disburse', {
       employee,
       amount,
-      tenure_months: tenureMonths,
-      monthly_repayment_amount: monthlyAmount,
-      loan_product: loanProduct,
-      custom_moratorium: customMoratorium,
-      disbursement_date: disbursementDate,
-    }),
+      tenure_months,
+      monthly_repayment_amount,
+      loan_product,
+      custom_moratorium,
+      disbursement_date,
+      disburse,
+    }, 'POST'),
+
+  disburseLoan: (loan_name, disbursement_date) =>
+    callApi('st_automation.api.payroll.disburse_loan', { loan_name, disbursement_date }, 'POST'),
   
   runPayrollAndReport: (company, startDate, endDate, costCenter) => 
     callApi('st_automation.api.payroll.run_payroll_and_report', {

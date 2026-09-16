@@ -207,29 +207,46 @@ export function ApplicantDetailModal({
             </h3>
             <div className="space-y-3">
               {scheduledInterviews.map((iv) => (
-                <div key={iv.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700">
-                  <div>
-                    <span className="text-sm font-bold text-gray-900 dark:text-slate-50 block">{iv.name}</span>
-                    <span className="text-[13px] text-gray-500 dark:text-slate-400 mt-0.5 block flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDateTime(iv.scheduled_on)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 text-right">
+                <div key={iv.name} className="flex flex-col p-4 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <span className="text-[12px] uppercase font-bold text-gray-400 dark:text-slate-500 block mb-0.5">Interviewers</span>
-                      <div className="flex -space-x-2">
-                        {iv.interviewers?.map((emp, i) => (
-                          <div key={i} className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[12px] font-bold border-2 border-white ring-1 ring-gray-100" title={emp}>
-                            {emp.substring(0, 2).toUpperCase()}
-                          </div>
-                        ))}
-                      </div>
+                      <span className="text-sm font-bold text-gray-900 dark:text-slate-50 block">{iv.name}</span>
+                      <span className="text-[13px] text-gray-500 dark:text-slate-400 mt-0.5 block flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDateTime(iv.scheduled_on)}
+                      </span>
                     </div>
-                    <Badge variant={['Scheduled', 'Pending'].includes(iv.status) ? 'primary' : iv.status === 'Completed' ? 'success' : 'default'}>
-                      {iv.status}
-                    </Badge>
+                    <div className="flex items-center gap-4 text-right">
+                      <div>
+                        <span className="text-[12px] uppercase font-bold text-gray-400 dark:text-slate-500 block mb-0.5">Interviewers</span>
+                        <div className="flex -space-x-2">
+                          {iv.interviewers?.map((emp, i) => (
+                            <div key={i} className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[12px] font-bold border-2 border-white ring-1 ring-gray-100" title={emp}>
+                              {emp.substring(0, 2).toUpperCase()}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <Badge variant={['Scheduled', 'Pending'].includes(iv.status) ? 'primary' : iv.status === 'Completed' || iv.status === 'Cleared' ? 'success' : 'default'}>
+                        {iv.status}
+                      </Badge>
+                    </div>
                   </div>
+                  {/* Feedbacks Section */}
+                  {iv.feedbacks && iv.feedbacks.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-700 space-y-2">
+                      <span className="text-[12px] uppercase font-bold text-gray-500 dark:text-slate-400 block mb-2">Submitted Feedbacks</span>
+                      {iv.feedbacks.map((fb, fidx) => (
+                        <div key={fidx} className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-100 dark:border-slate-700">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[13px] font-bold text-gray-900 dark:text-slate-50">{fb.interviewer}</span>
+                            <Badge variant={fb.result === 'Pass' ? 'success' : fb.result === 'Fail' ? 'danger' : 'warning'}>{fb.result}</Badge>
+                          </div>
+                          <p className="text-[13px] text-gray-600 dark:text-slate-300 italic">"{fb.feedback}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

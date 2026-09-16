@@ -12,12 +12,14 @@ export function MyInterviewsView({ interviews = [], onOpenFeedback, onOpenCandid
           <h2 className="text-2xl font-heading font-bold text-brand-black dark:text-slate-50 tracking-tight">My Scheduled Interviews</h2>
           <p className="text-sm text-brand-grey">View upcoming candidates, review resumes inline, and submit 1-click scorecards.</p>
         </div>
-        <Button 
-          icon={Calendar} 
-          onClick={onScheduleAdHoc}
-        >
-          Schedule Interview
-        </Button>
+        {onScheduleAdHoc && (
+          <Button 
+            icon={Calendar} 
+            onClick={onScheduleAdHoc}
+          >
+            Schedule Interview
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

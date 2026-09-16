@@ -41,3 +41,12 @@ fixtures = [
 		]
 	}
 ]
+
+doc_events = {
+	"Employee": {
+		"on_update": "st_automation.api.employee.assign_employee_role"
+	},
+	"Salary Slip": {
+		"before_save": "st_automation.api.salary_slip.before_save"
+	}
+}
