@@ -207,7 +207,19 @@ export function RunPayrollWizard({
                     </div>
                   )
                 ) : (
-                  <Badge variant="success">Submitted Officially</Badge>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-700 text-sm font-bold whitespace-nowrap">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      Submitted Officially
+                    </span>
+                    <Button
+                      variant="secondary"
+                      icon={FileText}
+                      onClick={onViewSalarySlips}
+                    >
+                      View Salary Slips
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -215,7 +227,7 @@ export function RunPayrollWizard({
             {/* Metric Breakdown Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
               <div className="p-4 rounded-2xl bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-700">
-                <span className="text-sm font-bold text-brand-grey block uppercase">Total Gross Earnings</span>
+                <span className="text-sm font-bold text-brand-grey block uppercase">Total Gross Payout</span>
                 <span className="text-xl font-heading font-bold text-brand-black dark:text-slate-50 mt-1 block">
                   {formatCurrency(result.total_gross)}
                 </span>

@@ -10,6 +10,7 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
   const [structures, setStructures] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false);
   
   // Default to 1st of the current month
   const firstDay = new Date();
@@ -33,6 +34,7 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
   }, [isOpen, employee]);
 
   const loadData = async () => {
+    setIsLoadingData(true);
     try {
       // Fetch Salary Structures using our safe payroll API
       const ssRes = await callApi('st_automation.api.payroll.get_salary_structures', {
@@ -49,6 +51,8 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
       }
     } catch (err) {
       console.error('Failed to load modal data', err);
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
@@ -89,7 +93,7 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
               required
               value={formData.employee}
               onChange={(e) => setFormData(prev => ({ ...prev, employee: e.target.value }))}
-              className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+              className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
             >
               <option value="">Select Employee...</option>
               {employees.map(emp => (
@@ -109,11 +113,11 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
               required
               value={formData.salary_structure}
               onChange={(e) => setFormData(prev => ({ ...prev, salary_structure: e.target.value }))}
-              className="w-full appearance-none bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-9 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+              className="w-full appearance-none bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-9 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
             >
-              <option value="">Select Structure...</option>
+              <option value="">{isLoadingData ? 'Loading...' : structures.length === 0 ? 'No structures found' : 'Select Structure...'}</option>
               {structures.map(s => (
-                <option key={s.name} value={s.name}>{s.name}</option>
+                <option key={s.name} value={s.name}>{s.name}{s.company ? ` (${s.company})` : ''}</option>
               ))}
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-grey" />
@@ -140,7 +144,7 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
               placeholder="e.g. 50000"
               value={formData.base}
               onChange={(e) => setFormData(prev => ({ ...prev, base: e.target.value }))}
-              className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+              className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
             />
           </div>
         </div>
@@ -152,7 +156,7 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
             required
             value={formData.from_date}
             onChange={(e) => setFormData(prev => ({ ...prev, from_date: e.target.value }))}
-            className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+            className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
           />
         </div>
 

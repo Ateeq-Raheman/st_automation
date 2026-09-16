@@ -49,12 +49,12 @@ export function KanbanBoard({
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {/* Stage Filter Switcher */}
-          <div className="flex bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-1">
+          <div className="flex bg-gray-100 dark:bg-slate-800/50 p-1 rounded-xl shrink-0">
             <button
               onClick={() => setActiveTabStage('active')}
               className={`px-3.5 py-1.5 rounded-lg text-sm font-bold transition-all ${
                 activeTabStage === 'active' 
-                  ? 'bg-brand-red text-white shadow-md' 
+                  ? 'bg-white dark:bg-slate-700 text-brand-black dark:text-slate-50 shadow-sm' 
                   : 'text-brand-grey hover:text-brand-black dark:text-slate-50'
               }`}
             >
@@ -64,7 +64,7 @@ export function KanbanBoard({
               onClick={() => setActiveTabStage('completed')}
               className={`px-3.5 py-1.5 rounded-lg text-sm font-bold transition-all ${
                 activeTabStage === 'completed' 
-                  ? 'bg-brand-red text-white shadow-md' 
+                  ? 'bg-white dark:bg-slate-700 text-brand-black dark:text-slate-50 shadow-sm' 
                   : 'text-brand-grey hover:text-brand-black dark:text-slate-50'
               }`}
             >
@@ -72,30 +72,32 @@ export function KanbanBoard({
             </button>
           </div>
 
-          {/* Job Filter */}
-          <select
-            value={selectedJob}
-            onChange={(e) => setSelectedJob(e.target.value)}
-            className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold text-brand-black dark:text-slate-50 focus:outline-none focus:border-brand-red"
-          >
-            <option value="all">All Job Openings</option>
-            {jobOpenings.map((job) => (
-              <option key={job.name} value={job.job_title || job.name}>
-                {job.job_title || job.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+            {/* Job Filter */}
+            <select
+              value={selectedJob}
+              onChange={(e) => setSelectedJob(e.target.value)}
+              className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold text-brand-black dark:text-slate-50 focus:outline-none focus:border-brand-red shrink-0"
+            >
+              <option value="all">All Job Openings</option>
+              {jobOpenings.map((job) => (
+                <option key={job.name} value={job.job_title || job.name}>
+                  {job.job_title || job.name}
+                </option>
+              ))}
+            </select>
 
-          {/* Search Input */}
-          <div className="relative w-full md:w-64">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-brand-grey" />
-            <input
-              type="text"
-              placeholder="Search candidates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm font-semibold text-brand-black dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:border-brand-red"
-            />
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-brand-grey" />
+              <input
+                type="text"
+                placeholder="Search candidates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm font-semibold text-brand-black dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:border-brand-red"
+              />
+            </div>
           </div>
         </div>
       </div>

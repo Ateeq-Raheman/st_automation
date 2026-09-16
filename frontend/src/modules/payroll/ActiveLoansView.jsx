@@ -71,7 +71,8 @@ export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoa
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-slate-700 text-left text-[13px] font-bold uppercase tracking-wide text-brand-grey">
-                <th className="px-4 py-3">Employee</th>
+                <th className="px-4 py-3">Employee ID</th>
+                <th className="px-4 py-3">Employee Name</th>
                 <th className="px-4 py-3">Loan Amount</th>
                 <th className="px-4 py-3">Monthly EMI</th>
                 <th className="px-4 py-3">Tenure</th>
@@ -87,8 +88,11 @@ export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoa
                   onClick={() => setSelectedLoanId(loan.name)}
                 >
                   <td className="px-4 py-3">
-                    <div className="font-bold text-brand-black dark:text-slate-50">{loan.applicant_name || loan.applicant}</div>
+                    <div className="font-bold text-brand-black dark:text-slate-50">{loan.applicant}</div>
                     <div className="text-[13px] text-brand-grey">{loan.name}</div>
+                  </td>
+                  <td className="px-4 py-3 text-brand-black dark:text-slate-50 font-medium">
+                    {loan.applicant_name || '-'}
                   </td>
                   <td className="px-4 py-3 font-semibold text-brand-black dark:text-slate-50">{formatCurrency(loan.loan_amount)}</td>
                   <td className="px-4 py-3 text-brand-grey">{formatCurrency(loan.monthly_repayment_amount)} / mo</td>

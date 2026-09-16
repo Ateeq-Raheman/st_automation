@@ -633,7 +633,14 @@ def get_applicant_details(applicant_id):
 		if not frappe.db.exists("Job Applicant", applicant_id):
 			return error_response("Candidate not found.")
 
-		doc = frappe.get_doc("Job Applicant", applicant_id)
+		# Fetch with ignore_permissions so interviewers can load candidate profiles.
+		# The @frappe.whitelist() decorator + session authentication is the access gate.
+		frappe.flags.ignore_permissions = True
+		try:
+			doc = frappe.get_doc("Job Applicant", applicant_id)
+		finally:
+			frappe.flags.ignore_permissions = False
+
 		# Map basic fields
 		applicant = {
 			"name": doc.name,
@@ -706,6 +713,16 @@ def get_applicant_interviews(applicant_id):
 		for iv in interviews:
 			details = frappe.get_all("Interview Detail", filters={"parent": iv.name}, fields=["interviewer"])
 			iv["interviewers"] = [d.interviewer for d in details]
+			
+			# Fetch feedbacks
+			iv["feedbacks"] = []
+			if frappe.db.exists("DocType", "Interview Feedback"):
+				feedbacks = frappe.get_all(
+					"Interview Feedback",
+					filters={"interview": iv.name},
+					fields=["name", "interviewer", "result", "feedback", "creation"]
+				)
+				iv["feedbacks"] = feedbacks
 			
 		# Sort by scheduled_on descending
 		interviews.sort(key=lambda x: x.scheduled_on or x.creation, reverse=True)
@@ -1230,6 +1247,9 @@ def send_offer_letter(applicant_id, file_url=None):
 			<p>Dear {app_doc.applicant_name},</p>
 			<p>Congratulations! We're delighted to offer you the position of <strong>{role_label}</strong> at Standard Touch.</p>
 			<p>Please find your formal offer letter attached to this email. Simply reply directly to this email to let us know if you accept, or if you have any questions about the offer.</p>
+			<p style="background-color: #f8fafc; padding: 12px; border-left: 4px solid #ef4444; margin: 20px 0;">
+				<strong>Note:</strong> This offer is valid for <strong>72 hours</strong> from the time of this email. We kindly request your response within this timeframe.
+			</p>
 			<p>We're looking forward to hearing from you!</p>
 			<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
 			<p style="font-size: 12px; color: #94a3b8;">Standard Touch Recruitment Team</p>
