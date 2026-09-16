@@ -1,18 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Modal } from '../../components/common/Modal';
 import { Badge } from '../../components/common/Badge';
+import { Button } from '../../components/common/Button';
+import { ToastContext } from '../../components/common/Toast';
 import { formatCurrency, formatDate, callApi } from '../../api/client';
-import { CreditCard, Calendar, User, FileText, CheckCircle2 } from 'lucide-react';
+import { payrollApi } from '../../api/payrollApi';
+import { CreditCard, Calendar, User, FileText, CheckCircle2, DollarSign } from 'lucide-react';
 
-export function LoanDetailModal({ loanId, onClose }) {
+export function LoanDetailModal({ loanId, onClose, onRefresh }) {
   const [loan, setLoan] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isDisbursing, setIsDisbursing] = useState(false);
+  const { addToast } = useContext(ToastContext);
 
   useEffect(() => {
     if (loanId) {
       fetchLoanDetails();
     }
   }, [loanId]);
+
+  const handleDisburse = async () => {
+    setIsDisbursing(true);
+    try {
+      await payrollApi.disburseLoan(loanId, new Date().toISOString().split('T')[0]);
+      addToast(`Loan ${loanId} disbursed successfully!`, 'success');
+      if (onRefresh) onRefresh();
+      fetchLoanDetails(); // refresh details
+    } catch (err) {
+      addToast(err.message || 'Failed to disburse loan', 'error');
+    } finally {
+      setIsDisbursing(false);
+    }
+  };
 
   const fetchLoanDetails = async () => {
     try {
@@ -55,9 +74,25 @@ export function LoanDetailModal({ loanId, onClose }) {
         <div className="space-y-8 pt-2">
           {/* Header Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-4">
-              <p className="text-xs font-bold text-brand-grey uppercase tracking-wider mb-1">Status</p>
-              <Badge variant={STATUS_VARIANT[loan.status] || 'default'}>{loan.status}</Badge>
+            <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-4 flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-bold text-brand-grey uppercase tracking-wider mb-1">Status</p>
+                <Badge variant={STATUS_VARIANT[loan.status] || 'default'}>{loan.status}</Badge>
+              </div>
+              {loan.status === 'Sanctioned' && (
+                <div className="mt-3">
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white border-0" 
+                    icon={DollarSign}
+                    isLoading={isDisbursing}
+                    onClick={handleDisburse}
+                  >
+                    Disburse
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl p-4">
               <p className="text-xs font-bold text-brand-grey uppercase tracking-wider mb-1">Loan Amount</p>

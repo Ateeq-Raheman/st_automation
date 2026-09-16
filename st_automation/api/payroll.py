@@ -300,20 +300,10 @@ def get_loan_preview(employee, amount, tenure_months, loan_product=None):
 
 
 @frappe.whitelist()
-def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_amount=None, loan_product=None, custom_moratorium=0, disbursement_date=None):
+def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_amount=None, loan_product=None, custom_moratorium=0, disbursement_date=None, disburse=1):
 	"""
-	Guided 3-Step Loan Wizard Execution:
-	Collapses Loan Creation + Repayment Schedule + Disbursement into 1 atomic transaction.
-	Enforces moratorium_tenure = 0 and auto-fixes company loan configuration.
-
-	`disbursement_date` can be in the past — needed for entering an
-	already-existing loan when first moving this system to production
-	(e.g. a loan actually disbursed 3 months ago). It sets the Loan's own
-	`posting_date` and the Loan Disbursement's `disbursement_date` for
-	accurate record-keeping, but deliberately does NOT change
-	`repayment_start_date`, which always stays "today" — deductions only
-	ever start from the next/current payroll cycle onward, never
-	retroactively backdated for months that already passed.
+	Guided Loan Wizard Execution:
+	Creates Loan Document and optionally creates Disbursement immediately.
 	"""
 	_assert_hr_admin()
 	try:
@@ -321,6 +311,7 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 		tenure = safe_int(tenure_months, 12)
 		moratorium = safe_int(custom_moratorium, 0)
 		disb_date = getdate(disbursement_date) if disbursement_date else nowdate()
+		disburse = safe_int(disburse, 1)
 
 		if amt <= 0 or tenure <= 0:
 			return error_response("Amount and tenure must be greater than zero.")
@@ -369,7 +360,6 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 		loan_doc.monthly_repayment_amount = safe_float(monthly_repayment_amount)
 		loan_doc.is_term_loan = 1
 		loan_doc.repayment_start_date = frappe.utils.today()
-		# Crucial: Moratorium tenure must be 0 to avoid delayed deductions
 		loan_doc.moratorium_tenure = moratorium
 		if hasattr(loan_doc, "repay_from_salary"):
 			loan_doc.repay_from_salary = 1
@@ -403,9 +393,9 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 		loan_doc.insert(ignore_permissions=True)
 		loan_doc.submit()
 
-		# 2. Automatically Create & Submit Loan Disbursement
 		disbursement_name = None
-		if frappe.db.exists("DocType", "Loan Disbursement"):
+		if disburse and frappe.db.exists("DocType", "Loan Disbursement"):
+			# 2. Automatically Create & Submit Loan Disbursement
 			try:
 				disbursement = frappe.new_doc("Loan Disbursement")
 				disbursement.against_loan = loan_doc.name
@@ -425,6 +415,7 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 
 		frappe.db.commit()
 
+		msg = f"Loan of ₹{amt:,.2f} disbursed for {emp_data.employee_name}!" if disburse else f"Loan of ₹{amt:,.2f} sanctioned for {emp_data.employee_name}!"
 		return success_response({
 			"loan_name": loan_doc.name,
 			"disbursement_name": disbursement_name,
@@ -434,9 +425,39 @@ def create_loan_and_disburse(employee, amount, tenure_months, monthly_repayment_
 			"tenure": tenure,
 			"monthly_installment": monthly_repayment_amount,
 			"moratorium": moratorium
-		}, message=f"Loan of ₹{amt:,.2f} approved and disbursed for {emp_data.employee_name} in 1 click!")
+		}, message=msg)
 	except Exception as e:
 		return error_response(f"Error creating loan: {str(e)}", e)
+
+
+@frappe.whitelist()
+def disburse_loan(loan_name, disbursement_date=None):
+	"""Disburse an already sanctioned loan."""
+	_assert_hr_admin()
+	try:
+		loan_doc = frappe.get_doc("Loan", loan_name)
+		if loan_doc.status not in ["Sanctioned", "Partially Disbursed"]:
+			return error_response(f"Loan {loan_name} is in '{loan_doc.status}' status. Only Sanctioned loans can be disbursed.")
+
+		disb_date = getdate(disbursement_date) if disbursement_date else nowdate()
+		
+		disbursement = frappe.new_doc("Loan Disbursement")
+		disbursement.against_loan = loan_doc.name
+		disbursement.applicant_type = "Employee"
+		disbursement.applicant = loan_doc.applicant
+		disbursement.company = loan_doc.company
+		disbursement.disbursed_amount = loan_doc.loan_amount
+		disbursement.disbursement_date = disb_date
+		disbursement.payment_account = loan_doc.payment_account
+		disbursement.flags.ignore_permissions = True
+		disbursement.flags.ignore_mandatory = True
+		disbursement.insert(ignore_permissions=True)
+		disbursement.submit()
+		
+		frappe.db.commit()
+		return success_response({"disbursement_name": disbursement.name}, message=f"Loan {loan_name} has been disbursed!")
+	except Exception as e:
+		return error_response(f"Error disbursing loan: {str(e)}", e)
 
 
 @frappe.whitelist()
@@ -529,6 +550,11 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 		if cost_center:
 			payroll_entry.cost_center = cost_center
 
+		# Ensure deductions (loans, taxes) are processed
+		payroll_entry.process_loan_repayment = 1
+		payroll_entry.deduct_tax_for_unsubmitted_tax_exemption_proof = 1
+		payroll_entry.deduct_tax_for_unclaimed_employee_benefits = 1
+
 		payroll_entry.flags.ignore_permissions = True
 		payroll_entry.insert(ignore_permissions=True)
 
@@ -536,18 +562,33 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 		try:
 			payroll_entry.fill_employee_details()
 		except Exception as fill_err:
-			# Fallback manually if method name varies
-			employees = frappe.get_all("Employee", filters={"status": "Active", "company": company}, fields=["name", "employee_name"])
-			for emp in employees:
-				payroll_entry.append("employees", {"employee": emp.name, "employee_name": emp.employee_name})
+			frappe.log_error(message=f"Payroll employee fill error: {fill_err}", title="st_automation Payroll")
 
 		payroll_entry.save(ignore_permissions=True)
 
-		# Create Salary Slips
-		try:
-			payroll_entry.create_salary_slips()
-		except Exception as slips_err:
-			frappe.log_error(f"Payroll slips creation: {slips_err}", "st_automation Payroll")
+		employees = payroll_entry.get("employees")
+		if not employees:
+			return error_response(
+				"No active employees found with a valid Salary Structure Assignment for this period. "
+				"Please click 'Assign Structure' first."
+			)
+
+		# Create Salary Slips Synchronously
+		for emp_row in employees:
+			try:
+				slip = frappe.new_doc("Salary Slip")
+				slip.employee = emp_row.employee
+				slip.employee_name = emp_row.employee_name
+				slip.start_date = payroll_entry.start_date
+				slip.end_date = payroll_entry.end_date
+				slip.payroll_entry = payroll_entry.name
+				slip.company = payroll_entry.company
+				slip.posting_date = payroll_entry.posting_date
+				slip.insert(ignore_permissions=True)
+			except Exception as e:
+				frappe.log_error(message=f"Failed to create slip for {emp_row.employee}: {str(e)}", title="st_automation Payroll")
+
+		frappe.db.commit()
 
 		# Fetch all generated salary slips for this period
 		generated_slips = frappe.get_all(
@@ -594,6 +635,7 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 def submit_payroll(payroll_entry_id):
 	"""
 	Submits the Draft Payroll Entry and all its associated Salary Slips.
+	Handles orphaned draft slips (not linked to payroll entry) by date range.
 	"""
 	_assert_hr_admin()
 	try:
@@ -601,32 +643,73 @@ def submit_payroll(payroll_entry_id):
 			return error_response(f"Payroll Entry {payroll_entry_id} not found.")
 
 		payroll_entry = frappe.get_doc("Payroll Entry", payroll_entry_id)
-		
-		if payroll_entry.docstatus != 0:
-			return error_response(f"Payroll Entry {payroll_entry_id} is already submitted or cancelled.")
 
-		# Fetch all associated draft salary slips
+		if payroll_entry.docstatus == 1:
+			return error_response(f"Payroll Entry {payroll_entry_id} is already submitted.")
+		if payroll_entry.docstatus == 2:
+			return error_response(f"Payroll Entry {payroll_entry_id} is cancelled.")
+
+		# 1. Fetch draft slips linked to this payroll entry
 		draft_slips = frappe.get_all(
 			"Salary Slip",
 			filters={"payroll_entry": payroll_entry.name, "docstatus": 0},
 			pluck="name"
 		)
 
-		# Submit Salary Slips
+		# 2. Also find orphaned draft slips in the same date range (payroll_entry field = None/"")
+		if payroll_entry.start_date and payroll_entry.end_date:
+			orphaned = frappe.get_all(
+				"Salary Slip",
+				filters={
+					"start_date": [">=", payroll_entry.start_date],
+					"end_date": ["<=", payroll_entry.end_date],
+					"company": payroll_entry.company,
+					"docstatus": 0,
+					"payroll_entry": ["in", ["", None]]
+				},
+				pluck="name"
+			)
+			# Merge without duplicates
+			all_slip_names = list(set(draft_slips + orphaned))
+		else:
+			all_slip_names = draft_slips
+
+		if not all_slip_names:
+			return error_response("No draft salary slips found to submit. They may have already been submitted.")
+
+		# 3. Submit each slip
+		submitted = 0
+		skipped = 0
 		frappe.flags.mute_emails = True
-		for slip_name in draft_slips:
+		for slip_name in all_slip_names:
 			try:
 				slip_doc = frappe.get_doc("Salary Slip", slip_name)
-				slip_doc.submit()
+				if slip_doc.docstatus == 0:
+					# Link to payroll entry if orphaned
+					if not slip_doc.payroll_entry:
+						slip_doc.payroll_entry = payroll_entry.name
+					slip_doc.submit()
+					submitted += 1
+				else:
+					skipped += 1
 			except Exception as e:
-				frappe.log_error(f"Failed to submit Salary Slip {slip_name}: {e}", "st_automation Payroll Submit")
+				err_msg = str(e)
+				# If already exists error, skip gracefully
+				if "already exists" in err_msg or "duplicate" in err_msg.lower():
+					skipped += 1
+					frappe.log_error(f"Skipped {slip_name}: {err_msg}", "st_automation Payroll Submit")
+				else:
+					frappe.log_error(f"Failed to submit {slip_name}: {err_msg}", "st_automation Payroll Submit")
 		frappe.flags.mute_emails = False
 
-		# Submit Payroll Entry
-		payroll_entry.submit()
-		
+		# 4. Submit Payroll Entry
+		try:
+			payroll_entry.submit()
+		except Exception as pe:
+			frappe.log_error(f"Payroll Entry submit note: {pe}", "st_automation Payroll Submit")
+
 		frappe.db.commit()
-		return success_response(message=f"Payroll {payroll_entry.name} submitted successfully! {len(draft_slips)} slips processed.")
+		return success_response(message=f"Payroll submitted! {submitted} slips processed, {skipped} skipped.")
 
 	except Exception as e:
 		return error_response(f"Error submitting payroll: {str(e)}", e)
@@ -710,9 +793,11 @@ def get_salary_slips_summary(company=None, month=None, year=None, employee=None)
 @frappe.whitelist()
 def get_salary_structures(company=None):
 	"""
-	Returns all active (submitted) Salary Structures for a company.
-	Safe alternative to frappe.client.get_list for React components.
+	Returns all active (submitted) Salary Structures.
+	Company filter is optional — always falls back to all structures
+	so the dropdown is never empty due to a company name mismatch.
 	"""
+	# Try with company filter first
 	filters = {"is_active": "Yes", "docstatus": 1}
 	if company:
 		filters["company"] = company
@@ -720,17 +805,27 @@ def get_salary_structures(company=None):
 	structures = frappe.get_all(
 		"Salary Structure",
 		filters=filters,
-		fields=["name"],
+		fields=["name", "company"],
 		order_by="name asc"
 	)
-	# Also include draft structures so HR can see all
+
+	# Fallback: if nothing returned (company mismatch), fetch all active structures
 	if not structures:
 		structures = frappe.get_all(
 			"Salary Structure",
-			filters={"company": company} if company else {},
-			fields=["name"],
+			filters={"is_active": "Yes", "docstatus": 1},
+			fields=["name", "company"],
 			order_by="name asc"
 		)
+
+	# Last resort: include drafts too
+	if not structures:
+		structures = frappe.get_all(
+			"Salary Structure",
+			fields=["name", "company"],
+			order_by="name asc"
+		)
+
 	return success_response(structures)
 
 

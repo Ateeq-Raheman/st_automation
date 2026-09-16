@@ -10,8 +10,9 @@ import { formatCurrency } from '../../api/client';
 import { payrollApi } from '../../api/payrollApi';
 import EmployeeSelect from '../../components/EmployeeSelect';
 
-export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting }) {
+export function LoanApplicationWizard({ isOpen, onClose, onCreateLoan, onDisburseLoan, isSubmitting }) {
   const [step, setStep] = useState(1);
+  const [createdLoanName, setCreatedLoanName] = useState(null);
   const todayStr = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState({
     employee: '',
@@ -69,30 +70,45 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
         total_repayment: amt,
         moratorium_tenure: 0,
       });
-      setStep(2);
+      setStep(3);
     } finally {
       setIsPreviewLoading(false);
     }
   };
 
-  const handleFinalSubmit = () => {
+  const handleSanctionLoan = async () => {
     const monthlyAmt = previewData?.monthly_installment || Math.round(Number(formData.amount) / Number(formData.tenure_months));
-    onSuccess(
-      formData.employee,
-      formData.amount,
-      formData.tenure_months,
-      monthlyAmt,
-      formData.loan_product,
-      formData.custom_moratorium,
-      formData.disbursement_date
-    );
+    try {
+      const res = await onCreateLoan(
+        formData.employee,
+        formData.amount,
+        formData.tenure_months,
+        monthlyAmt,
+        formData.loan_product,
+        formData.custom_moratorium,
+        formData.disbursement_date
+      );
+      setCreatedLoanName(res.data.loan_name);
+      setStep(4);
+    } catch (e) {
+      // Error handled by parent
+    }
+  };
+
+  const handleDisburseNow = async () => {
+    try {
+      await onDisburseLoan(createdLoanName, formData.disbursement_date);
+      onClose();
+    } catch (e) {
+      // Error handled by parent
+    }
   };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="3-Step Loan & Advance Wizard"
+      title="4-Step Loan Application Wizard"
       subtitle="Fast employee loan application with guaranteed 0-moratorium setup and disbursement."
       maxWidth="max-w-xl"
     >
@@ -158,11 +174,9 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
                   onChange={(e) => setFormData({ ...formData, tenure_months: Number(e.target.value) })}
                   className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-brand-black dark:text-slate-50 font-bold focus:outline-none focus:border-brand-red"
                 >
-                  <option value={3}>3 Months</option>
-                  <option value={6}>6 Months</option>
-                  <option value={10}>10 Months</option>
-                  <option value={12}>12 Months (1 Year)</option>
-                  <option value={24}>24 Months (2 Years)</option>
+                  {Array.from({ length: 36 }, (_, i) => i + 1).map(month => (
+                    <option key={month} value={month}>{month} Month{month > 1 ? 's' : ''}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -279,28 +293,28 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
                 Back
               </Button>
               <Button variant="primary" icon={ChevronRight} onClick={() => setStep(3)}>
-                Proceed to Confirmation
+                Proceed to Sanction
               </Button>
             </div>
           </div>
         )}
 
-        {/* STEP 3: Confirm & Disburse */}
-        {step === 3 && (
+        {/* STEP 3: Sanction Loan */}
+        {step === 3 && previewData && (
           <div className="space-y-5 animate-fade-in">
             <div className="text-center space-y-2 py-3">
-              <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto shadow-glow-emerald">
-                <CreditCard className="h-6 w-6" />
+              <div className="h-12 w-12 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center mx-auto shadow-sm">
+                <FileText className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-brand-black dark:text-slate-50">Ready to Disburse Loan</h3>
+              <h3 className="text-lg font-bold text-brand-black dark:text-slate-50">Sanction Loan Application</h3>
               <p className="text-sm text-brand-grey max-w-sm mx-auto">
-                This will sanction the loan in ERPNext, generate the repayment schedule, and activate monthly deductions.
+                This will sanction the loan in ERPNext and generate the repayment schedule.
               </p>
             </div>
 
             <div className="bg-gray-50 dark:bg-slate-900/70 p-4 rounded-2xl border border-gray-200 dark:border-slate-700 text-sm space-y-2">
               <div className="flex justify-between text-gray-700 dark:text-slate-200">
-                <span>Disbursement Amount:</span>
+                <span>Loan Amount:</span>
                 <span className="font-bold text-brand-black dark:text-slate-50">{formatCurrency(formData.amount)}</span>
               </div>
               <div className="flex justify-between text-gray-700 dark:text-slate-200">
@@ -318,12 +332,34 @@ export function LoanApplicationWizard({ isOpen, onClose, onSuccess, isSubmitting
                 Back
               </Button>
               <Button
-                variant="success"
-                icon={CreditCard}
+                variant="primary"
+                icon={FileText}
                 isLoading={isSubmitting}
-                onClick={handleFinalSubmit}
+                onClick={handleSanctionLoan}
               >
-                Approve & Disburse in 1 Click
+                Sanction Loan
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: Disburse */}
+        {step === 4 && (
+          <div className="space-y-6 animate-fade-in text-center py-8">
+            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8" />
+            </div>
+            <h3 className="text-xl font-bold text-brand-black dark:text-slate-50">Loan Sanctioned Successfully!</h3>
+            <p className="text-brand-grey max-w-sm mx-auto">
+              The loan has been created and is now in the Sanctioned state.
+              Would you like to disburse the funds now?
+            </p>
+            <div className="flex gap-4 justify-center mt-6">
+              <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+                Skip for Later
+              </Button>
+              <Button className="bg-emerald-500 hover:bg-emerald-600 text-white border-0" onClick={handleDisburseNow} isLoading={isSubmitting}>
+                Disburse Now
               </Button>
             </div>
           </div>

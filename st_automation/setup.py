@@ -170,5 +170,28 @@ def setup_default_settings():
 				company_doc.save(ignore_permissions=True)
 
 		frappe.db.commit()
+
+		# Enable Salary Slips in standard Frappe Employee portal
+		if frappe.db.exists("DocType", "HR Settings"):
+			hr_settings = frappe.get_doc("HR Settings")
+			if hasattr(hr_settings, "show_salary_slips_in_web_portal") and not hr_settings.show_salary_slips_in_web_portal:
+				hr_settings.show_salary_slips_in_web_portal = 1
+				hr_settings.save(ignore_permissions=True)
+				frappe.db.commit()
+
+		# Enable and publish standard Job Applicant Web Form
+		if frappe.db.exists("Web Form", "job-applicant"):
+			web_form = frappe.get_doc("Web Form", "job-applicant")
+			if not web_form.published:
+				web_form.published = 1
+				web_form.save(ignore_permissions=True)
+				frappe.db.commit()
+		elif frappe.db.exists("Web Form", "Job Applicant"):
+			web_form = frappe.get_doc("Web Form", "Job Applicant")
+			if not web_form.published:
+				web_form.published = 1
+				web_form.save(ignore_permissions=True)
+				frappe.db.commit()
+
 	except Exception as e:
 		frappe.log_error(f"Error configuring default settings: {e}", "st_automation Setup")

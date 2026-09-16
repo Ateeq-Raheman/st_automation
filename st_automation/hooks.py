@@ -49,9 +49,13 @@ fixtures = [
 
 doc_events = {
 	"Employee": {
-		"after_insert": "st_automation.api.onboarding.on_employee_creation"
+		"after_insert": "st_automation.api.onboarding.on_employee_creation",
+		"on_update": "st_automation.api.employee.assign_employee_role"
 	},
 	"Employee Separation": {
 		"on_submit": "st_automation.api.exit.on_separation_submit"
+	},
+	"Salary Slip": {
+		"before_save": "st_automation.api.salary_slip.before_save"
 	}
 }

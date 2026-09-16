@@ -360,15 +360,31 @@ export function AppContent() {
     }
   };
 
-  const handleDisburseLoan = async (emp, amt, tenure, monthlyAmt, product, moratorium, disbursementDate) => {
+  const handleCreateLoan = async (emp, amt, tenure, monthlyAmt, product, moratorium, disbursementDate) => {
     setIsActionLoading(true);
     try {
-      const res = await payrollApi.createLoanAndDisburse(emp, amt, tenure, monthlyAmt, product, moratorium, disbursementDate);
-      addToast(res.message || 'Loan disbursed successfully!', 'success');
-      setIsLoanWizardOpen(false);
+      const res = await payrollApi.createLoan(emp, amt, tenure, monthlyAmt, product, moratorium, disbursementDate, 0);
+      addToast(res.message || 'Loan sanctioned successfully!', 'success');
       loadPayroll();
+      return res;
+    } catch (err) {
+      addToast(err.message || 'Failed to sanction loan', 'error');
+      throw err;
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleDisburseOnly = async (loanName, disbursementDate) => {
+    setIsActionLoading(true);
+    try {
+      const res = await payrollApi.disburseLoan(loanName, disbursementDate);
+      addToast(res.message || 'Loan disbursed successfully!', 'success');
+      loadPayroll();
+      return res;
     } catch (err) {
       addToast(err.message || 'Failed to disburse loan', 'error');
+      throw err;
     } finally {
       setIsActionLoading(false);
     }
@@ -489,7 +505,11 @@ export function AppContent() {
                   addToast('Failed to load candidate profile', 'error');
                 }
               }}
-              onScheduleAdHoc={() => setIsSelectCandidateOpen(true)}
+              onScheduleAdHoc={
+                (userProfile?.is_hr_admin || userProfile?.is_system_manager)
+                  ? () => setIsSelectCandidateOpen(true)
+                  : undefined
+              }
               isLoading={isRecruitmentLoading}
             />
           )}
@@ -664,7 +684,8 @@ export function AppContent() {
       <LoanApplicationWizard
         isOpen={isLoanWizardOpen}
         onClose={() => setIsLoanWizardOpen(false)}
-        onSuccess={handleDisburseLoan}
+        onCreateLoan={handleCreateLoan}
+        onDisburseLoan={handleDisburseOnly}
         isSubmitting={isActionLoading}
       />
 
