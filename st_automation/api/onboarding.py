@@ -144,6 +144,14 @@ def start_onboarding(employee, template=None, joining_date=None):
         onb.boarding_status = "Pending"
         onb.flags.ignore_mandatory = True
         onb.insert(ignore_permissions=True, ignore_mandatory=True)
+
+        # Workaround for standard ERPNext duplicate Project error
+        # ERPNext hardcodes project name to "Employee Onboarding : {employee}".
+        expected_project_name = f"Employee Onboarding : {employee}"
+        if frappe.db.exists("Project", expected_project_name):
+            old_proj = frappe.get_doc("Project", expected_project_name)
+            old_proj.db_set("project_name", f"{expected_project_name} - Old - {frappe.utils.now_datetime().strftime('%Y%m%d%H%M%S')}")
+
         onb.submit()
         frappe.db.commit()
 
