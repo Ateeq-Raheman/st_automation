@@ -7,6 +7,20 @@ import { TopHeader } from './components/layout/TopHeader';
 import { diagnosticsApi } from './api/diagnosticsApi';
 import { recruitmentApi } from './api/recruitmentApi';
 import { payrollApi } from './api/payrollApi';
+import { onboardingApi } from './api/onboardingApi';
+import { exitApi } from './api/exitApi';
+
+// Onboarding & Exit Views
+import { OnboardingPipelineView } from './modules/onboarding/OnboardingPipelineView';
+import { OnboardingStatusPage } from './modules/onboarding/OnboardingStatusPage';
+import { StartOnboardingModal } from './modules/onboarding/StartOnboardingModal';
+import { ExitPipelineView } from './modules/exit/ExitPipelineView';
+import { ExitStatusPage } from './modules/exit/ExitStatusPage';
+import { StartSeparationModal } from './modules/exit/StartSeparationModal';
+
+// Templates Views
+import { TemplateListPage } from './modules/templates/TemplateListPage';
+import { TemplateFormPage } from './modules/templates/TemplateFormPage';
 
 // Recruitment Views & Modals
 import { KanbanBoard } from './modules/recruitment/KanbanBoard';
@@ -35,11 +49,12 @@ import InterviewFeedback from './pages/InterviewFeedback';
 export function AppContent() {
   const { addToast } = useToast();
 
-  // Navigation State
   const [activeTab, setActiveTab] = useState('recruitment-pipeline');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isPublicCandidateMode, setIsPublicCandidateMode] = useState(false);
   const [isInterviewFeedbackMode, setIsInterviewFeedbackMode] = useState(false);
+  const [isPublicOnboardingMode, setIsPublicOnboardingMode] = useState(false);
+  const [isPublicExitMode, setIsPublicExitMode] = useState(false);
 
   // User & Company Context
   const [userProfile, setUserProfile] = useState(null);
@@ -66,6 +81,12 @@ export function AppContent() {
   const [recentStructureAssignments, setRecentStructureAssignments] = useState([]);
   const [isPayrollLoading, setIsPayrollLoading] = useState(false);
 
+  // Onboarding & Exit Data
+  const [onboardingData, setOnboardingData] = useState(null);
+  const [exitData, setExitData] = useState(null);
+  const [isOnboardingLoading, setIsOnboardingLoading] = useState(false);
+  const [isExitLoading, setIsExitLoading] = useState(false);
+
   // Diagnostics Data
   const [healthData, setHealthData] = useState(null);
   const [isHealthLoading, setIsHealthLoading] = useState(false);
@@ -80,16 +101,27 @@ export function AppContent() {
   const [isQuickIncentiveOpen, setIsQuickIncentiveOpen] = useState(false);
   const [isBulkIncentiveOpen, setIsBulkIncentiveOpen] = useState(false);
   const [isLoanWizardOpen, setIsLoanWizardOpen] = useState(false);
+  const [isStartOnboardingOpen, setIsStartOnboardingOpen] = useState(false);
+  const [isStartSeparationOpen, setIsStartSeparationOpen] = useState(false);
   const [activeInterviewForFeedback, setActiveInterviewForFeedback] = useState(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
+
+  // Template State
+  const [editingTemplate, setEditingTemplate] = useState({ type: null, name: null });
 
   // Detect Public Candidate Route or Interview Feedback Route
   useEffect(() => {
     const checkRoute = () => {
       const isBooking = window.location.hash.includes('book-slot') || window.location.pathname.includes('book-slot');
-      const isFeedback = window.location.pathname.includes('interview-feedback') || window.location.search.includes('token=');
+      const searchParams = new URLSearchParams(window.location.search);
+      const isFeedback = window.location.pathname.includes('interview-feedback') || searchParams.has('token');
+      const isOnboarding = searchParams.has('onboarding_token');
+      const isExit = searchParams.has('exit_token');
+      
       setIsPublicCandidateMode(isBooking);
       setIsInterviewFeedbackMode(isFeedback);
+      setIsPublicOnboardingMode(isOnboarding);
+      setIsPublicExitMode(isExit);
     };
     checkRoute();
     window.addEventListener('hashchange', checkRoute);
@@ -175,13 +207,40 @@ export function AppContent() {
     }
   }, [selectedCompany]);
 
+  // Load Onboarding & Exit
+  const loadOnboarding = useCallback(async () => {
+    setIsOnboardingLoading(true);
+    try {
+      const res = await onboardingApi.getPipeline(selectedCompany, 1);
+      setOnboardingData(res.data);
+    } catch (err) {
+      console.error('Error loading onboarding', err);
+    } finally {
+      setIsOnboardingLoading(false);
+    }
+  }, [selectedCompany]);
+
+  const loadExit = useCallback(async () => {
+    setIsExitLoading(true);
+    try {
+      const res = await exitApi.getPipeline(selectedCompany, 1);
+      setExitData(res.data);
+    } catch (err) {
+      console.error('Error loading exit pipeline', err);
+    } finally {
+      setIsExitLoading(false);
+    }
+  }, [selectedCompany]);
+
   useEffect(() => {
-    if (!isPublicCandidateMode) {
+    if (!isPublicCandidateMode && !isPublicOnboardingMode && !isPublicExitMode) {
       loadRecruitment();
       loadPayroll();
       loadDiagnostics();
+      loadOnboarding();
+      loadExit();
     }
-  }, [isPublicCandidateMode, loadRecruitment, loadPayroll, loadDiagnostics]);
+  }, [isPublicCandidateMode, isPublicOnboardingMode, isPublicExitMode, loadRecruitment, loadPayroll, loadDiagnostics, loadOnboarding, loadExit]);
 
   // 1-Click Handlers: Recruitment
   const handleShortlist = async (applicant) => {
@@ -367,6 +426,14 @@ export function AppContent() {
     return <InterviewFeedback />;
   }
 
+  if (isPublicOnboardingMode) {
+    return <OnboardingStatusPage />;
+  }
+
+  if (isPublicExitMode) {
+    return <ExitStatusPage />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-brand-black dark:text-slate-50 flex overflow-x-hidden">
       {/* Sidebar Navigation */}
@@ -445,6 +512,41 @@ export function AppContent() {
               }
               isLoading={isRecruitmentLoading}
             />
+          )}
+          
+          {/* Onboarding & Exit Views */}
+          {activeTab === 'onboarding-pipeline' && (
+            <OnboardingPipelineView
+              pipelineData={onboardingData}
+              isLoading={isOnboardingLoading}
+              onRefresh={loadOnboarding}
+              onStartOnboarding={() => setIsStartOnboardingOpen(true)}
+            />
+          )}
+
+          {activeTab === 'exit-pipeline' && (
+            <ExitPipelineView
+              pipelineData={exitData}
+              isLoading={isExitLoading}
+              onRefresh={loadExit}
+              onStartSeparation={() => setIsStartSeparationOpen(true)}
+            />
+          )}
+
+          {/* Templates Views */}
+          {activeTab === 'templates' && (
+            editingTemplate.type ? (
+              <TemplateFormPage
+                templateType={editingTemplate.type}
+                templateName={editingTemplate.name}
+                onBack={() => setEditingTemplate({ type: null, name: null })}
+              />
+            ) : (
+              <TemplateListPage
+                onCreate={(type) => setEditingTemplate({ type, name: null })}
+                onEdit={(type, name) => setEditingTemplate({ type, name })}
+              />
+            )
           )}
 
           {/* Payroll Views */}
@@ -585,6 +687,20 @@ export function AppContent() {
         onCreateLoan={handleCreateLoan}
         onDisburseLoan={handleDisburseOnly}
         isSubmitting={isActionLoading}
+      />
+
+      <StartOnboardingModal
+        isOpen={isStartOnboardingOpen}
+        onClose={() => setIsStartOnboardingOpen(false)}
+        company={selectedCompany}
+        onSuccess={() => { loadOnboarding(); setIsStartOnboardingOpen(false); }}
+      />
+
+      <StartSeparationModal
+        isOpen={isStartSeparationOpen}
+        onClose={() => setIsStartSeparationOpen(false)}
+        company={selectedCompany}
+        onSuccess={() => { loadExit(); setIsStartSeparationOpen(false); }}
       />
     </div>
   );

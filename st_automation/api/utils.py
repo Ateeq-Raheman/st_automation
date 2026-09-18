@@ -41,8 +41,11 @@ def success_response(data=None, message=None):
 def error_response(message, exc=None):
 	"""Standardized error response wrapper."""
 	if exc:
-		error_title = f"{message}: {str(exc)}"[:135]
-		frappe.log_error(title=error_title, message=str(exc))
+		error_title = f"{message}: {str(exc)}"[:130]
+		try:
+			frappe.log_error(str(exc), error_title)
+		except Exception:
+			pass
 	return {
 		"status": "error",
 		"message": str(message),
