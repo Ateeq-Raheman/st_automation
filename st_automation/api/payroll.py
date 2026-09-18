@@ -503,37 +503,83 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 				company_doc.save(ignore_permissions=True)
 				frappe.db.commit()
 
-		# Check if all active employees are already processed
-		active_employees = frappe.db.count("Employee", {"status": "Active", "company": company})
-		processed_employees_count = frappe.db.count("Salary Slip", {
+		# ── Step 1: Check for existing draft or submitted Payroll Entry ──────────
+		existing_pe = frappe.db.get_value("Payroll Entry", {
 			"company": company,
-			"start_date": [">=", start_date],
-			"end_date": ["<=", end_date],
-			"docstatus": ["!=", 2]
+			"start_date": start_date,
+			"end_date": end_date,
+			"docstatus": 0
 		})
 
-		if active_employees > 0 and processed_employees_count >= active_employees:
-			# If there is a draft payroll entry, just return it so they can resume
-			existing_pe = frappe.db.get_value("Payroll Entry", {
-				"company": company,
-				"start_date": start_date,
-				"end_date": end_date,
-				"docstatus": 0
-			})
-			if existing_pe:
-				# Return existing draft stats
-				slips = frappe.get_all("Salary Slip", filters={"payroll_entry": existing_pe}, fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name"])
-				return success_response({
-					"payroll_entry": existing_pe,
-					"total_processed": len(slips),
-					"total_gross": sum([safe_float(s.gross_pay) for s in slips]),
-					"total_deductions": sum([safe_float(s.total_deduction) for s in slips]),
-					"total_net_payout": sum([safe_float(s.net_pay) for s in slips]),
-					"successful": slips,
-					"failed": []
-				}, message="Resumed existing Draft Payroll")
-			else:
-				return error_response(f"Payroll is already fully processed for all {active_employees} employees for {company} between {start_date} and {end_date}.")
+		if existing_pe:
+			# Resume existing draft — collect all slips (linked + orphaned)
+			linked_slips = frappe.get_all("Salary Slip",
+				filters={"payroll_entry": existing_pe},
+				fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name", "docstatus"]
+			)
+			orphaned_slips = frappe.get_all("Salary Slip",
+				filters={
+					"start_date": [">=", start_date],
+					"end_date": ["<=", end_date],
+					"company": company,
+					"docstatus": ["!=", 2],
+					"payroll_entry": ["in", ["", None]]
+				},
+				fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name", "docstatus"]
+			)
+			all_slip_names = {s.name for s in linked_slips}
+			all_slips = linked_slips + [s for s in orphaned_slips if s.name not in all_slip_names]
+
+			success_slips = [{"salary_slip": s.name, "employee": s.employee,
+				"employee_name": s.employee_name, "gross_pay": safe_float(s.gross_pay),
+				"total_deduction": safe_float(s.total_deduction), "net_pay": safe_float(s.net_pay)}
+				for s in all_slips]
+
+			return success_response({
+				"payroll_entry": existing_pe,
+				"total_processed": len(success_slips),
+				"total_gross": sum(safe_float(s["gross_pay"]) for s in success_slips),
+				"total_deductions": sum(safe_float(s["total_deduction"]) for s in success_slips),
+				"total_net_payout": sum(safe_float(s["net_pay"]) for s in success_slips),
+				"successful": success_slips,
+				"failed": []
+			}, message=f"Resumed existing Draft Payroll — {len(success_slips)} salary slips ready.")
+
+		# ── Step 2: Check if fully submitted already ──────────────────────────
+		submitted_pe = frappe.db.get_value("Payroll Entry", {
+			"company": company,
+			"start_date": start_date,
+			"end_date": end_date,
+			"docstatus": 1
+		})
+		if submitted_pe:
+			slips = frappe.get_all("Salary Slip",
+				filters={"payroll_entry": submitted_pe, "docstatus": 1},
+				fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name"]
+			)
+			return success_response({
+				"payroll_entry": submitted_pe,
+				"total_processed": len(slips),
+				"total_gross": sum(safe_float(s.gross_pay) for s in slips),
+				"total_deductions": sum(safe_float(s.total_deduction) for s in slips),
+				"total_net_payout": sum(safe_float(s.net_pay) for s in slips),
+				"successful": [{
+					"salary_slip": s.name, "employee": s.employee,
+					"employee_name": s.employee_name, "gross_pay": safe_float(s.gross_pay),
+					"total_deduction": safe_float(s.total_deduction), "net_pay": safe_float(s.net_pay)
+				} for s in slips],
+				"failed": [],
+				"already_submitted": True
+			}, message=f"Payroll already submitted for this period — {len(slips)} slips.")
+
+		# ── Step 3: Check orphaned slips (no payroll entry) ───────────────────
+		orphaned = frappe.get_all("Salary Slip", filters={
+			"start_date": [">=", start_date], "end_date": ["<=", end_date],
+			"company": company, "docstatus": 0, "payroll_entry": ["in", ["", None]]
+		}, fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name"])
+		if orphaned:
+			# Link them to a payroll entry and resume
+			pass  # fall through to create payroll entry below
 
 		# Create Payroll Entry
 		if not company_doc.default_payroll_payable_account:
@@ -568,10 +614,33 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 
 		employees = payroll_entry.get("employees")
 		if not employees:
-			return error_response(
-				"No active employees found with a valid Salary Structure Assignment for this period. "
-				"Please click 'Assign Structure' first."
-			)
+			# Fallback: collect orphaned slips for this period
+			orphaned = frappe.get_all("Salary Slip", filters={
+				"start_date": [">=", start_date], "end_date": ["<=", end_date],
+				"company": company, "docstatus": 0, "payroll_entry": ["in", ["", None]]
+			}, fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name"])
+
+			if orphaned:
+				# Link orphaned slips to this payroll entry
+				for s in orphaned:
+					frappe.db.set_value("Salary Slip", s.name, "payroll_entry", payroll_entry.name, update_modified=False)
+				frappe.db.commit()
+				employees = [frappe._dict({"employee": s.employee, "employee_name": s.employee_name}) for s in orphaned]
+			else:
+				# Delete the empty payroll entry and return friendly error
+				payroll_entry.delete(ignore_permissions=True)
+				# Count employees that actually have salary structure
+				with_structure = frappe.db.sql("""
+					SELECT COUNT(DISTINCT ssa.employee) FROM `tabSalary Structure Assignment` ssa
+					JOIN `tabEmployee` e ON ssa.employee = e.name
+					WHERE ssa.docstatus = 1 AND e.status = 'Active' AND e.company = %(company)s
+					AND ssa.from_date <= %(end_date)s
+				""", {"company": company, "end_date": end_date})[0][0]
+				return error_response(
+					f"No employees eligible for payroll. {with_structure} employees have a salary structure assigned. "
+					f"Ensure at least one employee has an active Salary Structure Assignment with from_date ≤ {end_date}. "
+					f"Click 'Assign Structure' to assign one."
+				)
 
 		# Create Salary Slips Synchronously
 		for emp_row in employees:
