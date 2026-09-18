@@ -60,7 +60,7 @@ export function JobOpeningsView({ jobOpenings = [], onTogglePublish, isLoading, 
                   }`}
                 >
                   <Globe className="h-3.5 w-3.5" />
-                  <span>{job.publish_on_website ? 'Published' : 'Hidden'}</span>
+                  <span>{job.publish ? 'Published' : 'Hidden'}</span>
                 </button>
               </div>
             </div>

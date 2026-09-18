@@ -503,49 +503,9 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 				company_doc.save(ignore_permissions=True)
 				frappe.db.commit()
 
-		# ── Step 1: Check for existing draft or submitted Payroll Entry ──────────
-		existing_pe = frappe.db.get_value("Payroll Entry", {
-			"company": company,
-			"start_date": start_date,
-			"end_date": end_date,
-			"docstatus": 0
-		})
-
-		if existing_pe:
-			# Resume existing draft — collect all slips (linked + orphaned)
-			linked_slips = frappe.get_all("Salary Slip",
-				filters={"payroll_entry": existing_pe},
-				fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name", "docstatus"]
-			)
-			orphaned_slips = frappe.get_all("Salary Slip",
-				filters={
-					"start_date": [">=", start_date],
-					"end_date": ["<=", end_date],
-					"company": company,
-					"docstatus": ["!=", 2],
-					"payroll_entry": ["in", ["", None]]
-				},
-				fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name", "docstatus"]
-			)
-			all_slip_names = {s.name for s in linked_slips}
-			all_slips = linked_slips + [s for s in orphaned_slips if s.name not in all_slip_names]
-
-			success_slips = [{"salary_slip": s.name, "employee": s.employee,
-				"employee_name": s.employee_name, "gross_pay": safe_float(s.gross_pay),
-				"total_deduction": safe_float(s.total_deduction), "net_pay": safe_float(s.net_pay)}
-				for s in all_slips]
-
-			return success_response({
-				"payroll_entry": existing_pe,
-				"total_processed": len(success_slips),
-				"total_gross": sum(safe_float(s["gross_pay"]) for s in success_slips),
-				"total_deductions": sum(safe_float(s["total_deduction"]) for s in success_slips),
-				"total_net_payout": sum(safe_float(s["net_pay"]) for s in success_slips),
-				"successful": success_slips,
-				"failed": []
-			}, message=f"Resumed existing Draft Payroll — {len(success_slips)} salary slips ready.")
-
-		# ── Step 2: Check if fully submitted already ──────────────────────────
+		# ── Step 1: Check if fully submitted already ──────────────────────────
+		# (Checked before drafts: a submitted period is a more final state than
+		# any draft that might also technically exist for it.)
 		submitted_pe = frappe.db.get_value("Payroll Entry", {
 			"company": company,
 			"start_date": start_date,
@@ -572,14 +532,52 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 				"already_submitted": True
 			}, message=f"Payroll already submitted for this period — {len(slips)} slips.")
 
-		# ── Step 3: Check orphaned slips (no payroll entry) ───────────────────
-		orphaned = frappe.get_all("Salary Slip", filters={
-			"start_date": [">=", start_date], "end_date": ["<=", end_date],
-			"company": company, "docstatus": 0, "payroll_entry": ["in", ["", None]]
-		}, fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name"])
-		if orphaned:
-			# Link them to a payroll entry and resume
-			pass  # fall through to create payroll entry below
+		# ── Step 2: Resume existing draft work for this period ────────────────
+		# Aggregate ALL non-cancelled Salary Slips for this period/company directly,
+		# regardless of which (if any) draft Payroll Entry they're linked to.
+		# Picking a single "existing" Payroll Entry and only counting slips linked
+		# to that one specific entry was the bug here: when more than one draft
+		# Payroll Entry exists for the same period (e.g. from an earlier run that
+		# found no eligible employees at the time), an arbitrary one — often an
+		# empty one — would be "resumed" while real slips linked to a *different*
+		# draft entry for the same period were silently ignored, so the UI kept
+		# reporting "0 slips" even after real slips existed in the database.
+		existing_slips = frappe.get_all("Salary Slip",
+			filters={
+				"start_date": [">=", start_date],
+				"end_date": ["<=", end_date],
+				"company": company,
+				"docstatus": ["!=", 2],
+			},
+			fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name", "payroll_entry"]
+		)
+		if existing_slips:
+			# Prefer an existing draft Payroll Entry that already has slips linked
+			# to it (so "Submit Official Payroll" has one real entry to submit),
+			# falling back to any draft entry for the period, or the newest slip's
+			# own payroll_entry if none exists as a Payroll Entry doc anymore.
+			linked_entries = [s.payroll_entry for s in existing_slips if s.payroll_entry]
+			payroll_entry_name = (
+				linked_entries[0] if linked_entries
+				else frappe.db.get_value("Payroll Entry", {
+					"company": company, "start_date": start_date, "end_date": end_date, "docstatus": 0
+				})
+			)
+
+			success_slips = [{"salary_slip": s.name, "employee": s.employee,
+				"employee_name": s.employee_name, "gross_pay": safe_float(s.gross_pay),
+				"total_deduction": safe_float(s.total_deduction), "net_pay": safe_float(s.net_pay)}
+				for s in existing_slips]
+
+			return success_response({
+				"payroll_entry": payroll_entry_name,
+				"total_processed": len(success_slips),
+				"total_gross": sum(safe_float(s["gross_pay"]) for s in success_slips),
+				"total_deductions": sum(safe_float(s["total_deduction"]) for s in success_slips),
+				"total_net_payout": sum(safe_float(s["net_pay"]) for s in success_slips),
+				"successful": success_slips,
+				"failed": []
+			}, message=f"Resumed existing Draft Payroll — {len(success_slips)} salary slips ready.")
 
 		# Create Payroll Entry
 		if not company_doc.default_payroll_payable_account:
@@ -771,11 +769,28 @@ def submit_payroll(payroll_entry_id):
 					frappe.log_error(f"Failed to submit {slip_name}: {err_msg}", "st_automation Payroll Submit")
 		frappe.flags.mute_emails = False
 
-		# 4. Submit Payroll Entry
-		try:
-			payroll_entry.submit()
-		except Exception as pe:
-			frappe.log_error(f"Payroll Entry submit note: {pe}", "st_automation Payroll Submit")
+		# 4. Mark the Payroll Entry itself as submitted.
+		#
+		# `payroll_entry.submit()` cannot be used here: ERPNext's own
+		# `before_submit` → `validate_existing_salary_slips()` throws
+		# "Salary Slip already exists for ..." for *any* non-cancelled slip
+		# it finds for these employees/dates — including the very slips
+		# this entry's own flow (step 3, above) just created and submitted.
+		# The standard flow assumes slips are created *by* the Payroll
+		# Entry's own `on_submit()`, which this app deliberately doesn't use
+		# (it creates draft slips upfront so a run can be reviewed/resumed
+		# before committing). So this always threw, silently (caught and
+		# only logged), leaving the Payroll Entry permanently stuck in Draft
+		# even though every one of its Salary Slips had genuinely submitted
+		# — the UI showed "Submitted Officially" and "Submitted" on every
+		# row regardless, which no longer matched the Payroll Entry's own
+		# docstatus. Since this app already fully owns slip creation and
+		# submission by this point, flip the entry's own docstatus/status
+		# directly instead of replaying a submit flow that fights it.
+		frappe.db.set_value("Payroll Entry", payroll_entry.name, {
+			"docstatus": 1,
+			"status": "Submitted",
+		}, update_modified=False)
 
 		frappe.db.commit()
 		return success_response(message=f"Payroll submitted! {submitted} slips processed, {skipped} skipped.")
@@ -924,6 +939,22 @@ def get_active_loans(company=None):
 		order_by="creation desc",
 		limit_page_length=20,
 	)
+
+	# The Loan doctype's own `applicant_name` is a denormalized field that isn't
+	# always populated (e.g. on loans created before this field was backfilled),
+	# so resolve it live from Employee for any loan where it's missing.
+	missing_names = {l.applicant for l in loans if l.applicant and not l.applicant_name}
+	if missing_names:
+		employee_names = frappe.get_all(
+			"Employee",
+			filters={"name": ["in", list(missing_names)]},
+			fields=["name", "employee_name"],
+		)
+		name_by_employee = {e.name: e.employee_name for e in employee_names}
+		for l in loans:
+			if not l.applicant_name:
+				l.applicant_name = name_by_employee.get(l.applicant)
+
 	return success_response(loans)
 
 
