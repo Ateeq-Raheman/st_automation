@@ -7,7 +7,8 @@ import json
 from datetime import datetime, timedelta
 from st_automation.api.utils import (
 	success_response, error_response, generate_secure_token,
-	get_site_booking_url, ensure_custom_fields_exist, safe_int
+	get_site_booking_url, ensure_custom_fields_exist, safe_int,
+	split_datetime, combine_date_time
 )
 
 
@@ -332,7 +333,13 @@ def book_slot(token, slot_datetime, interviewer=None):
 		interview_doc = frappe.new_doc("Interview")
 		interview_doc.job_applicant = doc.name
 		interview_doc.job_opening = doc.job_title
-		interview_doc.scheduled_on = slot_datetime
+		# `scheduled_on` on the core Interview doctype is Date-only — assigning
+		# the full datetime string here would silently drop the time, so split
+		# it and store the time half in `from_time` as well.
+		slot_date, slot_time = split_datetime(slot_datetime)
+		interview_doc.scheduled_on = slot_date
+		interview_doc.from_time = slot_time
+		interview_doc.to_time = slot_time + timedelta(minutes=30)
 		interview_doc.status = "Pending"
 		interview_doc.flags.ignore_permissions = True
 		interview_doc.flags.ignore_mandatory = True
@@ -527,7 +534,13 @@ def schedule_interview_round(applicant_id, round_number, interviewers, scheduled
 		if job_opening_id:
 			interview_doc.job_opening = job_opening_id
 			
-		interview_doc.scheduled_on = scheduled_time
+		# `scheduled_on` is Date-only on the core Interview doctype — split
+		# out the time half into `from_time`/`to_time` too, or the time the
+		# HR user actually picked is silently discarded.
+		sched_date, sched_time = split_datetime(scheduled_time)
+		interview_doc.scheduled_on = sched_date
+		interview_doc.from_time = sched_time
+		interview_doc.to_time = sched_time + timedelta(minutes=30)
 		interview_doc.status = "Pending"
 		
 		# Add Interviewers to child table
@@ -583,7 +596,12 @@ def schedule_interview_round(applicant_id, round_number, interviewers, scheduled
 
 			for emp, email in interviewer_emails.items():
 				token = feedback_token_map.get(emp, "")
-				feedback_url = f"{site_url}/interview-feedback?token={token}&interview={interview_doc.name}"
+				# `/interview-feedback` is not a registered Frappe route and 404s —
+				# `/hr-ops` is the actual SPA shell, and it already detects this
+				# same public-feedback mode via the `token` query param (see
+				# App.jsx's `searchParams.has('token')` check), same pattern as
+				# the working onboarding/exit `?onboarding_token=`/`?exit_token=` links.
+				feedback_url = f"{site_url}/hr-ops?token={token}&interview={interview_doc.name}"
 				emp_name = frappe.db.get_value("Employee", emp, "employee_name") or emp
 
 				message = f"""
@@ -706,14 +724,14 @@ def get_applicant_interviews(applicant_id):
 		interviews = frappe.get_all(
 			"Interview",
 			filters={"job_applicant": applicant_id},
-			fields=["name", "job_opening", "scheduled_on", "status", "creation"]
+			fields=["name", "job_opening", "scheduled_on", "from_time", "status", "creation"]
 		)
-		
+
 		# For each interview, we can find the assigned interviewers from Interview Detail
 		for iv in interviews:
 			details = frappe.get_all("Interview Detail", filters={"parent": iv.name}, fields=["interviewer"])
 			iv["interviewers"] = [d.interviewer for d in details]
-			
+
 			# Fetch feedbacks
 			iv["feedbacks"] = []
 			if frappe.db.exists("DocType", "Interview Feedback"):
@@ -723,10 +741,16 @@ def get_applicant_interviews(applicant_id):
 					fields=["name", "interviewer", "result", "feedback", "creation"]
 				)
 				iv["feedbacks"] = feedbacks
-			
-		# Sort by scheduled_on descending
+
+		# Sort by scheduled_on descending (before combining it with from_time below)
 		interviews.sort(key=lambda x: x.scheduled_on or x.creation, reverse=True)
-		
+
+		# `scheduled_on` is Date-only on the core Interview doctype — combine
+		# it with `from_time` into one datetime string for the frontend, or
+		# the time the interview was actually scheduled for gets lost.
+		for iv in interviews:
+			iv["scheduled_on"] = combine_date_time(iv["scheduled_on"], iv.pop("from_time", None))
+
 		return success_response(interviews)
 	except Exception as e:
 		return error_response(f"Failed to fetch interviews: {str(e)}", e)
@@ -749,7 +773,7 @@ def get_my_interviews():
 			# HR staff see all interviews
 			interviews = frappe.get_all(
 				"Interview",
-				fields=["name", "job_applicant", "job_opening", "scheduled_on", "status"],
+				fields=["name", "job_applicant", "job_opening", "scheduled_on", "from_time", "status"],
 				order_by="scheduled_on desc",
 				limit=50
 			)
@@ -765,7 +789,7 @@ def get_my_interviews():
 			interviews = frappe.get_all(
 				"Interview",
 				filters={"name": ["in", my_interview_names]},
-				fields=["name", "job_applicant", "job_opening", "scheduled_on", "status"],
+				fields=["name", "job_applicant", "job_opening", "scheduled_on", "from_time", "status"],
 				order_by="scheduled_on desc",
 				limit=50
 			)
@@ -794,7 +818,7 @@ def get_my_interviews():
 				"applicant_id": item.job_applicant,
 				"applicant_name": app_name or item.job_applicant,
 				"job_title": item.job_opening or "Position",
-				"scheduled_on": item.scheduled_on,
+				"scheduled_on": combine_date_time(item.scheduled_on, item.from_time),
 				"status": item.status,
 				"resume_attachment": resume_url,
 				"email": email,
@@ -806,16 +830,46 @@ def get_my_interviews():
 		return error_response("Error loading interviews", e)
 
 
-@frappe.whitelist()
-def submit_interview_feedback(interview_id, rating, recommendation, comments, scorecard=None):
+@frappe.whitelist(allow_guest=True)
+def submit_interview_feedback(interview_id, rating, recommendation, comments, scorecard=None, token=None):
 	"""
 	Submits structured interview feedback and moves candidate to 'Interview Completed'.
+
+	Called two ways:
+	  - By a logged-in HR/interviewer user from the in-app Feedback Scorecard
+	    modal (no `token` — the session itself is the authorization).
+	  - By an unauthenticated interviewer from the public emailed feedback
+	    link (`token` required — this is `allow_guest=True`, so the token is
+	    the *only* thing standing between this endpoint and anyone who can
+	    guess an `interview_id`, and must be validated against the specific
+	    per-interviewer token map stored on the Interview doc).
 	"""
 	try:
 		if not interview_id:
 			return error_response("Interview ID is required.")
 
 		interview = frappe.get_doc("Interview", interview_id)
+
+		if token:
+			# Guest path: the token must match one of the per-interviewer
+			# tokens generated when this round was scheduled, and is
+			# consumed on successful use (the emailed link is one-time-use,
+			# as the public page itself tells the interviewer).
+			raw_map = interview.get("feedback_token")
+			token_map = frappe.parse_json(raw_map) if raw_map else {}
+			matched_employee = next((emp for emp, t in token_map.items() if t == token), None)
+			if not matched_employee:
+				return error_response("This feedback link is invalid or has already been used.")
+			del token_map[matched_employee]
+			# Set on the in-memory doc (not a direct db.set_value) — this
+			# object still gets a full `.save()` a few lines down for the
+			# status change, which would otherwise overwrite a direct DB
+			# update with this doc's own stale, pre-consumption token map.
+			interview.feedback_token = json.dumps(token_map)
+		elif not frappe.session.user or frappe.session.user == "Guest":
+			# No token and no logged-in session — neither authorization path applies.
+			return error_response("Not permitted. This feedback link may be invalid.")
+
 		interview.status = "Cleared"
 		interview.flags.ignore_mandatory = True
 		interview.save(ignore_permissions=True)
@@ -825,7 +879,13 @@ def submit_interview_feedback(interview_id, rating, recommendation, comments, sc
 			app_doc = frappe.get_doc("Job Applicant", applicant_id)
 			app_doc.status = "Replied"
 			summary = f"Rating: {rating}/5 | Rec: {recommendation} | Notes: {comments}"
-			app_doc.interview_rating_summary = summary
+			# `interview_rating_summary` is a Data field capped at 140 chars —
+			# any candidate feedback with a moderately detailed comment blew
+			# past that and threw a validation error on save (surfaced to the
+			# submitter, confusingly, as "Invalid Link" by the public feedback
+			# page's generic error handler). The full, untruncated text still
+			# goes into the comment below, which has no such length limit.
+			app_doc.interview_rating_summary = summary[:137] + "..." if len(summary) > 140 else summary
 			app_doc.add_comment("Comment", f"Interview Feedback: {summary}")
 			app_doc.save(ignore_permissions=True)
 
