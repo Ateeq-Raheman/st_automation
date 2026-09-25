@@ -39,7 +39,7 @@ def get_exit_pipeline(company=None, include_completed=0):
                     "Task",
                     filters={"project": sep.project},
                     fields=["name", "subject", "status", "exp_start_date", "exp_end_date",
-                             "completed_by", "completed_on", "description", "_assign", "creation"],
+                             "completed_by", "completed_on", "description", "_assign", "creation", "type"],
                     order_by="exp_start_date asc, creation asc"
                 )
                 import json
@@ -292,6 +292,192 @@ def add_task_comment(task_name, comment):
         return success_response(message="Comment added successfully.")
     except Exception as e:
         return error_response(f"Error adding comment: {e}", e)
+
+
+# ─────────────────────────────────────────────
+# Exit Document Generation
+# ─────────────────────────────────────────────
+
+def _get_letter_html(letter_type, sep_doc, emp_doc):
+    company_name = sep_doc.company
+    
+    def format_date_with_ordinal(d):
+        if not d: return "N/A"
+        if isinstance(d, str):
+            from frappe.utils import getdate
+            d = getdate(d)
+        suffix = 'th' if 11 <= d.day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(d.day % 10, 'th')
+        return d.strftime(f"%-d{suffix} %B %Y")
+
+    
+    # Try to fetch the Custom DocType template for this company
+    template_doc = frappe.get_all(
+        "Exit Letter Template",
+        filters={"letter_type": letter_type, "company": company_name},
+        fields=["*"],
+        limit=1
+    )
+    
+    if not template_doc:
+        # Fallback to hardcoded if not created by user
+        resignation_date = frappe.utils.formatdate(sep_doc.resignation_letter_date) if sep_doc.resignation_letter_date else "N/A"
+        designation = sep_doc.designation or "Employee"
+        if letter_type == "Relieving":
+            body_content = f"""
+            <p>Dear {emp_doc.employee_name},</p>
+            <p>We would like to inform you that your resignation has been accepted and you are relieved from the services of <b>{company_name}</b> effective from the closing hours of {frappe.utils.formatdate(emp_doc.relieving_date or frappe.utils.nowdate())}.</p>
+            <p>Your full and final settlement has been processed.</p>
+            <p>We wish you all the best in your future endeavors.</p>
+            """
+        else:
+            body_content = f"""
+            <p>TO WHOMSOEVER IT MAY CONCERN</p>
+            <br>
+            <p>This is to certify that <b>{emp_doc.employee_name}</b> was employed with <b>{company_name}</b> as a <b>{designation}</b> from {frappe.utils.formatdate(emp_doc.date_of_joining)} to {frappe.utils.formatdate(emp_doc.relieving_date or frappe.utils.nowdate())}.</p>
+            <p>During their tenure with us, we found them to be professional, diligent, and hardworking.</p>
+            <p>We wish them success in all future assignments.</p>
+            """
+        return f"""
+        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; line-height: 1.6;">
+            <div style="text-align: center; margin-bottom: 40px;">
+                <h2>{company_name}</h2>
+                <h3>{letter_type} Letter</h3>
+                <hr>
+            </div>
+            <div style="text-align: right; margin-bottom: 20px;">
+                Date: {frappe.utils.formatdate(frappe.utils.nowdate())}
+            </div>
+            {body_content}
+            <br><br><br>
+            <p>For <b>{company_name}</b></p>
+            <br><br>
+            <p>Authorized Signatory</p>
+        </div>
+        """
+        
+    template_html = template_doc[0].template_html
+    
+    # Render with Jinja
+    context = {
+        "emp_doc": emp_doc,
+        "sep_doc": sep_doc,
+        "frappe": frappe,
+        "format_date_with_ordinal": format_date_with_ordinal
+    }
+    
+    rendered_body = frappe.render_template(template_html, context)
+    return rendered_body
+
+@frappe.whitelist()
+def preview_exit_documents(separation):
+    try:
+        sep_doc = frappe.get_doc("Employee Separation", separation)
+        emp_doc = frappe.get_doc("Employee", sep_doc.employee)
+        
+        # Get Salary Slips
+        salary_slips = frappe.get_all(
+            "Salary Slip",
+            filters={"employee": sep_doc.employee, "docstatus": 1},
+            fields=["name", "start_date", "end_date", "gross_pay", "net_pay"],
+            order_by="end_date desc",
+            limit=6
+        )
+
+        return success_response({
+            "personal_email": emp_doc.personal_email,
+            "relieving_html": _get_letter_html("Relieving", sep_doc, emp_doc),
+            "experience_html": _get_letter_html("Experience", sep_doc, emp_doc),
+            "salary_slips": salary_slips
+        })
+    except Exception as e:
+        return error_response(f"Error generating preview: {e}", e)
+
+@frappe.whitelist()
+def download_exit_document_pdf(separation, letter_type):
+    try:
+        sep_doc = frappe.get_doc("Employee Separation", separation)
+        emp_doc = frappe.get_doc("Employee", sep_doc.employee)
+        
+        from frappe.utils.pdf import get_pdf
+        html = _get_letter_html(letter_type, sep_doc, emp_doc)
+        pdf_content = get_pdf(html)
+        
+        frappe.local.response.filename = f"{emp_doc.employee_name}_{letter_type}_Letter.pdf"
+        frappe.local.response.filecontent = pdf_content
+        frappe.local.response.type = "download"
+    except Exception as e:
+        frappe.throw(f"Error generating PDF: {str(e)}")
+
+@frappe.whitelist()
+def send_exit_documents(separation, task_name):
+    try:
+        sep_doc = frappe.get_doc("Employee Separation", separation)
+        emp_doc = frappe.get_doc("Employee", sep_doc.employee)
+
+        if not emp_doc.personal_email:
+            return error_response("Employee does not have a personal_email set. Please update their profile first.")
+
+        # 1. Generate PDFs
+        from frappe.utils.pdf import get_pdf
+        relieving_pdf = get_pdf(_get_letter_html("Relieving", sep_doc, emp_doc))
+        experience_pdf = get_pdf(_get_letter_html("Experience", sep_doc, emp_doc))
+
+        attachments = [
+            {"fname": f"{emp_doc.employee_name}_Relieving_Letter.pdf", "fcontent": relieving_pdf},
+            {"fname": f"{emp_doc.employee_name}_Experience_Letter.pdf", "fcontent": experience_pdf}
+        ]
+
+        # 2. Get Salary Slips PDFs
+        salary_slips = frappe.get_all(
+            "Salary Slip",
+            filters={"employee": sep_doc.employee, "docstatus": 1},
+            fields=["name", "end_date"],
+            order_by="end_date desc",
+            limit=6
+        )
+
+        for slip in salary_slips:
+            try:
+                # frappe.get_print returns HTML, we need to convert to PDF or use get_pdf
+                slip_html = frappe.get_print("Salary Slip", slip.name, print_format="Standard")
+                slip_pdf = get_pdf(slip_html)
+                month_year = slip.end_date.strftime("%b_%Y") if slip.end_date else slip.name
+                attachments.append({"fname": f"Salary_Slip_{month_year}.pdf", "fcontent": slip_pdf})
+            except Exception as ex:
+                frappe.log_error(f"Failed to attach salary slip {slip.name}: {ex}")
+
+        # 3. Send Email
+        message = f"""
+        <p>Dear {emp_doc.employee_name},</p>
+        <p>Please find attached your Relieving Letter, Experience Letter, and your last {len(salary_slips)} Salary Slips.</p>
+        <p>We wish you all the best in your future endeavors.</p>
+        <p>Regards,<br>{sep_doc.company} HR</p>
+        """
+
+        frappe.sendmail(
+            recipients=[emp_doc.personal_email],
+            subject=f"Exit Documents - {emp_doc.employee_name}",
+            message=message,
+            attachments=attachments,
+            now=True
+        )
+
+        # 4. Mark Task as Completed
+        task = frappe.get_doc("Task", task_name)
+        if task.status != "Completed":
+            task.status = "Completed"
+            task.completed_by = frappe.session.user
+            task.completed_on = frappe.utils.nowdate()
+            task.flags.ignore_permissions = True
+            task.save(ignore_permissions=True)
+            frappe.db.commit()
+
+            from st_automation.api.onboarding import _check_and_update_boarding_status
+            _check_and_update_boarding_status(task.project)
+
+        return success_response(message="Documents generated and sent successfully to personal email!")
+    except Exception as e:
+        return error_response(f"Error sending documents: {e}", e)
 
 
 # ─────────────────────────────────────────────
