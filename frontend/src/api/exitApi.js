@@ -34,5 +34,11 @@ export const exitApi = {
     callApi('st_automation.api.exit.resend_status_link', { separation, record_type: 'exit' }),
 
   revokeStatusLink: (separation) =>
-    callApi('st_automation.api.exit.revoke_status_link', { separation, record_type: 'exit' })
+    callApi('st_automation.api.exit.revoke_status_link', { separation, record_type: 'exit' }),
+
+  previewExitDocuments: (separation) =>
+    callApi('st_automation.api.exit.preview_exit_documents', { separation }, 'GET'),
+
+  sendExitDocuments: (separation, taskName) =>
+    callApi('st_automation.api.exit.send_exit_documents', { separation, task_name: taskName })
 };
