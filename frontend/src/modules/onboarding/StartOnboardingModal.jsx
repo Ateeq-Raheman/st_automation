@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { onboardingApi } from '../../api/onboardingApi';
 import { useToast } from '../../components/common/Toast';
-import { X, UserPlus, Search, Calendar } from 'lucide-react';
+import { X, UserPlus, Search, Calendar, Loader2 } from 'lucide-react';
 import { callApi } from '../../api/client';
 
 export function StartOnboardingModal({ isOpen, onClose, company, onSuccess }) {
@@ -191,9 +191,16 @@ export function StartOnboardingModal({ isOpen, onClose, company, onSuccess }) {
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || !selectedEmployee}
-            className="px-5 py-2.5 text-sm font-bold text-white bg-brand-red rounded-xl hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-brand-red rounded-xl hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isSubmitting ? 'Starting...' : 'Start Onboarding'}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                <span>Starting Onboarding...</span>
+              </>
+            ) : (
+              <span>Start Onboarding</span>
+            )}
           </button>
         </div>
       </div>

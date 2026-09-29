@@ -65,4 +65,7 @@ export const recruitmentApi = {
 
   onboardCandidate: (applicantId) => 
     callApi('st_automation.api.recruitment.onboard_candidate', { applicant_id: applicantId }),
+
+  deleteJobOpening: (jobName) =>
+    callApi('st_automation.api.recruitment.delete_job_opening', { job_name: jobName }),
 };

@@ -75,13 +75,42 @@ def ensure_custom_fields_exist():
 
 def safe_float(val, default=0.0):
 	try:
-		return float(val or default)
+		if val is None or str(val).strip() == "":
+			return default
+		return float(val)
 	except (ValueError, TypeError):
 		return default
 
 
 def safe_int(val, default=0):
 	try:
-		return int(val or default)
+		if val is None or str(val).strip() == "":
+			return default
+		return int(val)
 	except (ValueError, TypeError):
 		return default
+
+
+def get_hr_manager_emails():
+	"""
+	Returns a list of active email addresses of all users assigned the 'HR Manager' role.
+	Filters out disabled accounts, invalid emails, and placeholder admin domains.
+	"""
+	try:
+		hr_user_ids = frappe.get_all("Has Role", filters={"role": "HR Manager"}, pluck="parent")
+		if not hr_user_ids:
+			return []
+
+		emails = set()
+		for uid in set(hr_user_ids):
+			if frappe.db.exists("User", uid):
+				usr = frappe.get_doc("User", uid)
+				email = (usr.email or "").strip().lower()
+				if usr.enabled and email and "@" in email and not email.endswith(".example.com") and not email.endswith("@example.com"):
+					emails.add(usr.email.strip())
+
+		return list(emails)
+	except Exception as e:
+		frappe.log_error(f"Error fetching HR Manager emails: {e}", "st_automation CC Helper")
+		return []
+

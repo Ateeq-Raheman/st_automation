@@ -1,6 +1,6 @@
 import frappe
 from frappe.utils import now_datetime, add_to_date, nowdate, getdate
-from st_automation.api.utils import success_response, error_response, generate_secure_token
+from st_automation.api.utils import success_response, error_response, generate_secure_token, get_hr_manager_emails
 
 def get_site_exit_url(token):
     base_url = frappe.utils.get_url()
@@ -433,6 +433,7 @@ def _send_link_email(separation_doc, url, flow_type):
     try:
         frappe.sendmail(
             recipients=[email],
+            cc=get_hr_manager_emails(),
             subject=subject,
             message=message,
             now=True
