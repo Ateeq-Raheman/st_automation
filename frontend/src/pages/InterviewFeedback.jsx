@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Loader, Star, Send } from 'lucide-react';
+import { callApi } from '../api/client';
 
 /**
  * Public-facing Interview Feedback page.
@@ -18,6 +19,7 @@ export default function InterviewFeedback() {
   const [feedback, setFeedback] = useState('');
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
+  const [recommendation, setRecommendation] = useState('');
 
   useEffect(() => {
     if (!token || !interviewName) {
@@ -35,27 +37,17 @@ export default function InterviewFeedback() {
 
     setStatus('loading');
     try {
-      const formData = new FormData();
-      formData.append('token', token);
-      formData.append('interview', interviewName);
-      formData.append('feedback', feedback);
-      formData.append('rating', rating);
-
-      const response = await fetch('/api/method/st_automation.api.recruitment.submit_interview_feedback', {
-        method: 'POST',
-        body: formData,
+      await callApi('st_automation.api.recruitment.submit_interview_feedback', {
+        interview_id: interviewName,
+        rating,
+        recommendation,
+        comments: feedback,
+        token,
       });
-
-      const data = await response.json();
-      if (data.message && !data.exception) {
-        setStatus('success');
-      } else {
-        setStatus('error');
-        setErrorMsg(data.exception || 'Failed to submit feedback. This link may have already been used or expired.');
-      }
+      setStatus('success');
     } catch (err) {
       setStatus('error');
-      setErrorMsg('Network error. Please try again or contact HR.');
+      setErrorMsg(err.message || 'Failed to submit feedback. This link may have already been used or expired.');
     }
   };
 
@@ -160,9 +152,9 @@ export default function InterviewFeedback() {
                 <button
                   key={option}
                   type="button"
-                  onClick={() => setFeedback((prev) => `[${option}]\n\n${prev.replace(/^\[.*?\]\n\n/, '')}`)}
+                  onClick={() => setRecommendation(option)}
                   className={`px-3 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
-                    feedback.startsWith(`[${option}]`)
+                    recommendation === option
                       ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                       : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:border-gray-400'
                   }`}

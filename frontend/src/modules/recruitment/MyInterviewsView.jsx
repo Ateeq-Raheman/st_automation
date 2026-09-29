@@ -70,7 +70,7 @@ export function MyInterviewsView({ interviews = [], onOpenFeedback, onOpenCandid
                       size="sm"
                       variant="outline"
                       icon={UserCheck}
-                      onClick={() => onOpenCandidate(item.job_applicant)}
+                      onClick={() => onOpenCandidate(item.applicant_id)}
                     >
                       View Candidate
                     </Button>

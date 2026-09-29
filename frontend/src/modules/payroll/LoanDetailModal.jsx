@@ -36,11 +36,10 @@ export function LoanDetailModal({ loanId, onClose, onRefresh }) {
   const fetchLoanDetails = async () => {
     try {
       setLoading(true);
-      const res = await callApi('frappe.client.get', {
-        doctype: 'Loan',
-        name: loanId
-      });
-      setLoan(res.message);
+      const res = await callApi('st_automation.api.payroll.get_loan_details', {
+        loan_name: loanId
+      }, 'GET');
+      setLoan(res.data);
     } catch (err) {
       console.error('Failed to fetch loan details:', err);
     } finally {
@@ -119,7 +118,7 @@ export function LoanDetailModal({ loanId, onClose, onRefresh }) {
                 <div className="space-y-3 bg-gray-50 dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
                   <div className="flex justify-between">
                     <span className="text-sm text-brand-grey">Employee</span>
-                    <span className="text-sm font-semibold text-brand-black dark:text-slate-50">{loan.applicant_name}</span>
+                    <span className="text-sm font-semibold text-brand-black dark:text-slate-50">{loan.applicant_name || loan.applicant}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-brand-grey">Employee ID</span>

@@ -5,7 +5,8 @@ from frappe.utils import (
 )
 import json
 from st_automation.api.utils import (
-	success_response, error_response, safe_float, safe_int, ensure_custom_fields_exist
+	success_response, error_response, safe_float, safe_int, ensure_custom_fields_exist,
+	get_hr_manager_emails
 )
 
 
@@ -503,37 +504,112 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 				company_doc.save(ignore_permissions=True)
 				frappe.db.commit()
 
-		# Check if all active employees are already processed
-		active_employees = frappe.db.count("Employee", {"status": "Active", "company": company})
-		processed_employees_count = frappe.db.count("Salary Slip", {
+		# ── Step 1: Check if fully submitted already ──────────────────────────
+		# If a submitted Payroll Entry exists for this period, check whether
+		# any NEW employees (with valid salary structures) were added after
+		# that submission. If so, create a supplementary run for them only.
+		submitted_pe = frappe.db.get_value("Payroll Entry", {
 			"company": company,
-			"start_date": [">=", start_date],
-			"end_date": ["<=", end_date],
-			"docstatus": ["!=", 2]
+			"start_date": start_date,
+			"end_date": end_date,
+			"docstatus": 1
 		})
+		if submitted_pe:
+			# Get employees already processed (submitted slips for this period)
+			already_processed = frappe.db.sql("""
+				SELECT DISTINCT employee FROM `tabSalary Slip`
+				WHERE company = %(company)s
+				AND start_date >= %(start_date)s AND end_date <= %(end_date)s
+				AND docstatus != 2
+			""", {"company": company, "start_date": start_date, "end_date": end_date}, as_dict=True)
+			already_processed_ids = {r.employee for r in already_processed}
 
-		if active_employees > 0 and processed_employees_count >= active_employees:
-			# If there is a draft payroll entry, just return it so they can resume
-			existing_pe = frappe.db.get_value("Payroll Entry", {
-				"company": company,
-				"start_date": start_date,
-				"end_date": end_date,
-				"docstatus": 0
-			})
-			if existing_pe:
-				# Return existing draft stats
-				slips = frappe.get_all("Salary Slip", filters={"payroll_entry": existing_pe}, fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name"])
+			# Get all eligible employees (active + have salary structure for this period)
+			eligible = frappe.db.sql("""
+				SELECT DISTINCT ssa.employee, e.employee_name
+				FROM `tabSalary Structure Assignment` ssa
+				JOIN `tabEmployee` e ON ssa.employee = e.name
+				WHERE ssa.docstatus = 1
+				AND e.status = 'Active'
+				AND e.company = %(company)s
+				AND ssa.from_date <= %(end_date)s
+			""", {"company": company, "end_date": end_date}, as_dict=True)
+
+			# Find missing employees
+			missing_employees = [e for e in eligible if e.employee not in already_processed_ids]
+
+			if not missing_employees:
+				# Everyone is covered — return the existing submitted data
+				slips = frappe.get_all("Salary Slip",
+					filters={"payroll_entry": submitted_pe, "docstatus": 1},
+					fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name"]
+				)
 				return success_response({
-					"payroll_entry": existing_pe,
+					"payroll_entry": submitted_pe,
 					"total_processed": len(slips),
-					"total_gross": sum([safe_float(s.gross_pay) for s in slips]),
-					"total_deductions": sum([safe_float(s.total_deduction) for s in slips]),
-					"total_net_payout": sum([safe_float(s.net_pay) for s in slips]),
-					"successful": slips,
-					"failed": []
-				}, message="Resumed existing Draft Payroll")
+					"total_gross": sum(safe_float(s.gross_pay) for s in slips),
+					"total_deductions": sum(safe_float(s.total_deduction) for s in slips),
+					"total_net_payout": sum(safe_float(s.net_pay) for s in slips),
+					"successful": [{
+						"salary_slip": s.name, "employee": s.employee,
+						"employee_name": s.employee_name, "gross_pay": safe_float(s.gross_pay),
+						"total_deduction": safe_float(s.total_deduction), "net_pay": safe_float(s.net_pay)
+					} for s in slips],
+					"failed": [],
+					"already_submitted": True
+				}, message=f"Payroll already submitted for this period — {len(slips)} slips. All eligible employees are covered.")
 			else:
-				return error_response(f"Payroll is already fully processed for all {active_employees} employees for {company} between {start_date} and {end_date}.")
+				# There are new employees to process — create a supplementary payroll
+				skipped_names = ", ".join(already_processed_ids)
+				frappe.log_error(
+					title="st_automation Supplementary Payroll",
+					message=f"Creating supplementary payroll for {len(missing_employees)} employees. "
+					f"Skipping already processed: {skipped_names}"
+				)
+				# Fall through to normal payroll creation below — but we'll
+				# restrict it to only the missing employees. We do this by
+				# NOT returning here and letting the code below handle it.
+				# We set a flag to pass the missing employee list.
+				_supplementary_employees = missing_employees
+				_is_supplementary = True
+				_skipped_count = len(already_processed_ids)
+
+		# ── Step 2: Resume existing draft work for this period ────────────────
+		# Skip this step if we're doing a supplementary run (we already know
+		# there are new employees that need processing).
+		if not locals().get('_is_supplementary'):
+			existing_slips = frappe.get_all("Salary Slip",
+				filters={
+					"start_date": [">=", start_date],
+					"end_date": ["<=", end_date],
+					"company": company,
+					"docstatus": ["!=", 2],
+				},
+				fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name", "payroll_entry"]
+			)
+			if existing_slips:
+				linked_entries = [s.payroll_entry for s in existing_slips if s.payroll_entry]
+				payroll_entry_name = (
+					linked_entries[0] if linked_entries
+					else frappe.db.get_value("Payroll Entry", {
+						"company": company, "start_date": start_date, "end_date": end_date, "docstatus": 0
+					})
+				)
+
+				success_slips = [{"salary_slip": s.name, "employee": s.employee,
+					"employee_name": s.employee_name, "gross_pay": safe_float(s.gross_pay),
+					"total_deduction": safe_float(s.total_deduction), "net_pay": safe_float(s.net_pay)}
+					for s in existing_slips]
+
+				return success_response({
+					"payroll_entry": payroll_entry_name,
+					"total_processed": len(success_slips),
+					"total_gross": sum(safe_float(s["gross_pay"]) for s in success_slips),
+					"total_deductions": sum(safe_float(s["total_deduction"]) for s in success_slips),
+					"total_net_payout": sum(safe_float(s["net_pay"]) for s in success_slips),
+					"successful": success_slips,
+					"failed": []
+				}, message=f"Resumed existing Draft Payroll — {len(success_slips)} salary slips ready.")
 
 		# Create Payroll Entry
 		if not company_doc.default_payroll_payable_account:
@@ -558,20 +634,49 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 		payroll_entry.flags.ignore_permissions = True
 		payroll_entry.insert(ignore_permissions=True)
 
-		# Populate employee list
-		try:
-			payroll_entry.fill_employee_details()
-		except Exception as fill_err:
-			frappe.log_error(message=f"Payroll employee fill error: {fill_err}", title="st_automation Payroll")
+		# For supplementary runs, use the pre-computed missing employee list
+		# instead of fill_employee_details (which would include everyone)
+		if locals().get('_is_supplementary') and locals().get('_supplementary_employees'):
+			employees = [frappe._dict({"employee": e.employee, "employee_name": e.employee_name})
+				for e in _supplementary_employees]
+		else:
+			# Populate employee list normally
+			try:
+				payroll_entry.fill_employee_details()
+			except Exception as fill_err:
+				frappe.log_error(message=f"Payroll employee fill error: {fill_err}", title="st_automation Payroll")
 
-		payroll_entry.save(ignore_permissions=True)
+			payroll_entry.save(ignore_permissions=True)
+			employees = payroll_entry.get("employees")
 
-		employees = payroll_entry.get("employees")
 		if not employees:
-			return error_response(
-				"No active employees found with a valid Salary Structure Assignment for this period. "
-				"Please click 'Assign Structure' first."
-			)
+			# Fallback: collect orphaned slips for this period
+			orphaned = frappe.get_all("Salary Slip", filters={
+				"start_date": [">=", start_date], "end_date": ["<=", end_date],
+				"company": company, "docstatus": 0, "payroll_entry": ["in", ["", None]]
+			}, fields=["name", "gross_pay", "total_deduction", "net_pay", "employee", "employee_name"])
+
+			if orphaned:
+				# Link orphaned slips to this payroll entry
+				for s in orphaned:
+					frappe.db.set_value("Salary Slip", s.name, "payroll_entry", payroll_entry.name, update_modified=False)
+				frappe.db.commit()
+				employees = [frappe._dict({"employee": s.employee, "employee_name": s.employee_name}) for s in orphaned]
+			else:
+				# Delete the empty payroll entry and return friendly error
+				payroll_entry.delete(ignore_permissions=True)
+				# Count employees that actually have salary structure
+				with_structure = frappe.db.sql("""
+					SELECT COUNT(DISTINCT ssa.employee) FROM `tabSalary Structure Assignment` ssa
+					JOIN `tabEmployee` e ON ssa.employee = e.name
+					WHERE ssa.docstatus = 1 AND e.status = 'Active' AND e.company = %(company)s
+					AND ssa.from_date <= %(end_date)s
+				""", {"company": company, "end_date": end_date})[0][0]
+				return error_response(
+					f"No employees eligible for payroll. {with_structure} employees have a salary structure assigned. "
+					f"Ensure at least one employee has an active Salary Structure Assignment with from_date ≤ {end_date}. "
+					f"Click 'Assign Structure' to assign one."
+				)
 
 		# Create Salary Slips Synchronously
 		for emp_row in employees:
@@ -619,6 +724,13 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 
 		frappe.db.commit()
 
+		is_supp = locals().get('_is_supplementary')
+		skipped = locals().get('_skipped_count', 0)
+		if is_supp:
+			msg = f"Supplementary Payroll generated! {skipped} employees already processed (skipped). {len(success_slips)} new salary slips drafted."
+		else:
+			msg = f"Draft Payroll generated! Review {len(success_slips)} salary slips before submitting."
+
 		return success_response({
 			"payroll_entry": payroll_entry.name,
 			"total_processed": len(success_slips),
@@ -626,8 +738,10 @@ def run_payroll_and_report(company, start_date, end_date, cost_center=None):
 			"total_deductions": total_deductions,
 			"total_net_payout": total_payout,
 			"successful": success_slips,
-			"failed": failed_slips
-		}, message=f"Draft Payroll generated! Review {len(success_slips)} salary slips before submitting.")
+			"failed": failed_slips,
+			"is_supplementary": bool(is_supp),
+			"skipped_count": skipped
+		}, message=msg)
 	except Exception as e:
 		return error_response(f"Error executing payroll: {str(e)}", e)
 
@@ -690,6 +804,122 @@ def submit_payroll(payroll_entry_id):
 						slip_doc.payroll_entry = payroll_entry.name
 					slip_doc.submit()
 					submitted += 1
+
+					# Send detailed Salary Slip notification email to employee with HR Managers in CC
+					try:
+						emp_doc = frappe.get_doc("Employee", slip_doc.employee)
+						emp_email = emp_doc.personal_email or emp_doc.company_email
+						if emp_email:
+							month_name = formatdate(slip_doc.start_date, "MMMM YYYY")
+							
+							# Build Earnings Rows
+							earnings_html = ""
+							for ear in slip_doc.earnings:
+								if flt(ear.amount) > 0:
+									earnings_html += f"""
+									<tr>
+										<td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155;">{ear.salary_component}</td>
+										<td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 600; color: #166534;">₹{flt(ear.amount):,.2f}</td>
+									</tr>
+									"""
+							
+							# Build Deductions Rows
+							deductions_html = ""
+							for ded in slip_doc.deductions:
+								if flt(ded.amount) > 0:
+									deductions_html += f"""
+									<tr>
+										<td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155;">{ded.salary_component}</td>
+										<td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 600; color: #b91c1c;">₹{flt(ded.amount):,.2f}</td>
+									</tr>
+									"""
+							
+							# Build Loan Repayments Rows
+							loans_html = ""
+							if hasattr(slip_doc, "loans") and slip_doc.loans:
+								for ln in slip_doc.loans:
+									if flt(ln.total_payment) > 0:
+										loans_html += f"""
+										<tr>
+											<td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155;">Loan Repayment ({ln.loan or 'Advance EMI'})</td>
+											<td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 600; color: #b91c1c;">₹{flt(ln.total_payment):,.2f}</td>
+										</tr>
+										"""
+
+							subject = f"Salary Slip for {month_name} — Standard Touch"
+							message = f"""
+							<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 650px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+								<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ef4444; padding-bottom: 12px; margin-bottom: 20px;">
+									<h2 style="color: #ef4444; margin: 0;">Standard Touch e-Solutions</h2>
+									<span style="font-size: 14px; font-weight: bold; color: #64748b;">Salary Slip: {slip_doc.name}</span>
+								</div>
+								<p>Dear <strong>{slip_doc.employee_name}</strong>,</p>
+								<p>We are pleased to inform you that your payroll for the period <strong>{formatdate(slip_doc.start_date, "dd MMM yyyy")} to {formatdate(slip_doc.end_date, "dd MMM yyyy")} ({month_name})</strong> has been successfully processed.</p>
+								
+								<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+									<table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+										<tr>
+											<td style="padding: 4px 0; color: #64748b;">Employee ID:</td>
+											<td style="padding: 4px 0; font-weight: bold;">{slip_doc.employee}</td>
+											<td style="padding: 4px 0; color: #64748b;">Designation:</td>
+											<td style="padding: 4px 0; font-weight: bold;">{slip_doc.designation or '-'}</td>
+										</tr>
+										<tr>
+											<td style="padding: 4px 0; color: #64748b;">Bank Account:</td>
+											<td style="padding: 4px 0; font-weight: bold;">{slip_doc.bank_account_no or '-'}</td>
+											<td style="padding: 4px 0; color: #64748b;">Payment Days:</td>
+											<td style="padding: 4px 0; font-weight: bold;">{slip_doc.payment_days or '-'}</td>
+										</tr>
+									</table>
+								</div>
+
+								<h4 style="color: #1e293b; margin: 18px 0 8px;">Earnings Breakdown</h4>
+								<table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; border: 1px solid #f1f5f9;">
+									<thead>
+										<tr style="background-color: #f1f5f9;">
+											<th style="padding: 8px 12px; text-align: left; color: #475569;">Component</th>
+											<th style="padding: 8px 12px; text-align: right; color: #475569;">Amount</th>
+										</tr>
+									</thead>
+									<tbody>
+										{earnings_html or '<tr><td colspan="2" style="padding: 8px 12px; color: #94a3b8;">None</td></tr>'}
+									</tbody>
+									<tfoot>
+										<tr style="background-color: #f8fafc; font-weight: bold;">
+											<td style="padding: 8px 12px; color: #1e293b;">Gross Pay</td>
+											<td style="padding: 8px 12px; text-align: right; color: #166534;">₹{flt(slip_doc.gross_pay):,.2f}</td>
+										</tr>
+									</tfoot>
+								</table>
+
+								{(f'<h4 style="color: #1e293b; margin: 18px 0 8px;">Deductions & Loan Repayments</h4>' +
+								  '<table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; border: 1px solid #f1f5f9;">' +
+								  '<thead><tr style="background-color: #f1f5f9;"><th style="padding: 8px 12px; text-align: left; color: #475569;">Component</th><th style="padding: 8px 12px; text-align: right; color: #475569;">Amount</th></tr></thead>' +
+								  '<tbody>' + (deductions_html or '') + (loans_html or '') + '</tbody>' +
+								  '<tfoot><tr style="background-color: #f8fafc; font-weight: bold;"><td style="padding: 8px 12px; color: #1e293b;">Total Deductions</td><td style="padding: 8px 12px; text-align: right; color: #b91c1c;">₹' + f'{flt(slip_doc.total_deduction):,.2f}' + '</td></tr></tfoot>' +
+								  '</table>') if (deductions_html or loans_html) else ''}
+
+								<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 24px 0; text-align: center;">
+									<span style="font-size: 13px; color: #166534; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Net Disbursed Pay</span>
+									<h2 style="color: #15803d; margin: 6px 0 0; font-size: 28px; font-weight: bold;">₹{flt(slip_doc.net_pay):,.2f}</h2>
+								</div>
+
+								<p style="font-size: 13px; color: #475569;">You can view and download your full printable salary slip at any time from your HR Portal under <strong>My Salary Slips</strong>.</p>
+								<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+								<p style="font-size: 12px; color: #94a3b8;">Standard Touch HR Operations & Payroll Team</p>
+							</div>
+							"""
+							frappe.sendmail(
+								recipients=[emp_email],
+								cc=get_hr_manager_emails(),
+								subject=subject,
+								message=message,
+								reference_doctype="Salary Slip",
+								reference_name=slip_doc.name,
+								now=True
+							)
+					except Exception as mail_err:
+						frappe.log_error(title="st_automation Salary Slip Email", message=f"Failed to email slip {slip_name}: {mail_err}")
 				else:
 					skipped += 1
 			except Exception as e:
@@ -702,14 +932,37 @@ def submit_payroll(payroll_entry_id):
 					frappe.log_error(f"Failed to submit {slip_name}: {err_msg}", "st_automation Payroll Submit")
 		frappe.flags.mute_emails = False
 
-		# 4. Submit Payroll Entry
-		try:
-			payroll_entry.submit()
-		except Exception as pe:
-			frappe.log_error(f"Payroll Entry submit note: {pe}", "st_automation Payroll Submit")
+		# 4. Mark the Payroll Entry itself as submitted.
+		#
+		# `payroll_entry.submit()` cannot be used here: ERPNext's own
+		# `before_submit` → `validate_existing_salary_slips()` throws
+		# "Salary Slip already exists for ..." for *any* non-cancelled slip
+		# it finds for these employees/dates — including the very slips
+		# this entry's own flow (step 3, above) just created and submitted.
+		# The standard flow assumes slips are created *by* the Payroll
+		# Entry's own `on_submit()`, which this app deliberately doesn't use
+		# (it creates draft slips upfront so a run can be reviewed/resumed
+		# before committing). So this always threw, silently (caught and
+		# only logged), leaving the Payroll Entry permanently stuck in Draft
+		# even though every one of its Salary Slips had genuinely submitted
+		# — the UI showed "Submitted Officially" and "Submitted" on every
+		# row regardless, which no longer matched the Payroll Entry's own
+		# docstatus. Since this app already fully owns slip creation and
+		# submission by this point, flip the entry's own docstatus/status
+		# directly instead of replaying a submit flow that fights it.
+		frappe.db.set_value("Payroll Entry", payroll_entry.name, {
+			"docstatus": 1,
+			"status": "Submitted",
+		}, update_modified=False)
+
+		# Count total slips now associated with this payroll entry (submitted)
+		total_submitted = frappe.db.count("Salary Slip", {
+			"payroll_entry": payroll_entry.name,
+			"docstatus": 1
+		})
 
 		frappe.db.commit()
-		return success_response(message=f"Payroll submitted! {submitted} slips processed, {skipped} skipped.")
+		return success_response(message=f"Payroll submitted! {total_submitted} slips processed, {skipped} skipped.")
 
 	except Exception as e:
 		return error_response(f"Error submitting payroll: {str(e)}", e)
@@ -730,11 +983,11 @@ def get_salary_slips_summary(company=None, month=None, year=None, employee=None)
 		today = getdate()
 		m = int(month) if month else today.month
 		y = int(year) if year else today.year
-		start_date = getdate(f"{y}-{m:02d}-01")
-		end_date = get_last_day(start_date)
+		# start_date = getdate(f"{y}-{m:02d}-01")
+		# end_date = get_last_day(start_date)
 
-		filters["start_date"] = [">=", start_date]
-		filters["end_date"] = ["<=", end_date]
+		# filters["start_date"] = [">=", start_date]
+		# filters["end_date"] = ["<=", end_date]
 
 		# Role-based filtering: HR staff see everyone's slips, everyone else
 		# only their own. This previously only recognized "HR Manager" —
@@ -772,7 +1025,7 @@ def get_salary_slips_summary(company=None, month=None, year=None, employee=None)
 				"docstatus", "posting_date"
 			],
 			filters=filters,
-			order_by="employee_name asc",
+			order_by="start_date desc, employee_name asc",
 			limit=200
 		)
 
@@ -840,6 +1093,10 @@ def get_active_loans(company=None):
 	if not frappe.db.exists("DocType", "Loan"):
 		return success_response([])
 
+	# Fetch both Sanctioned (0) and Disbursed (1) loans if they are not Cancelled (2).
+	# Wait, loans in Draft are 0, Sanctioned are submitted (1), and Disbursed is just status.
+	# The user might have skipped disbursement, meaning it's "Sanctioned".
+	# Since it's submitted, docstatus is 1.
 	filters = {"docstatus": 1}
 	if company:
 		filters["company"] = company
@@ -850,12 +1107,97 @@ def get_active_loans(company=None):
 		fields=[
 			"name", "applicant", "applicant_name", "loan_amount",
 			"monthly_repayment_amount", "status", "posting_date",
-			"disbursement_date", "repayment_periods",
+			"disbursement_date", "repayment_periods", "repayment_start_date"
 		],
 		order_by="creation desc",
 		limit_page_length=20,
 	)
+
+	missing_names = {l.applicant for l in loans if l.applicant and not l.applicant_name}
+	if missing_names:
+		employee_names = frappe.get_all(
+			"Employee",
+			filters={"name": ["in", list(missing_names)]},
+			fields=["name", "employee_name"],
+		)
+		name_by_employee = {e.name: e.employee_name for e in employee_names}
+		for l in loans:
+			if not l.applicant_name:
+				l.applicant_name = name_by_employee.get(l.applicant)
+
+	# Fetch Next Repayment Date from schedules
+	loan_names = [l.name for l in loans]
+	if loan_names:
+		schedules = frappe.db.sql("""
+			SELECT s.loan, d.payment_date 
+			FROM `tabLoan Repayment Schedule` s
+			JOIN `tabRepayment Schedule` d ON d.parent = s.name
+			WHERE s.loan IN %s AND d.payment_date >= CURDATE()
+			ORDER BY d.payment_date ASC
+		""", (tuple(loan_names),), as_dict=True)
+		
+		# Take the earliest upcoming date for each loan
+		next_dates = {}
+		for row in schedules:
+			if row.loan not in next_dates:
+				next_dates[row.loan] = row.payment_date
+				
+		for l in loans:
+			l.next_repayment_date = next_dates.get(l.name)
+
 	return success_response(loans)
+
+
+@frappe.whitelist()
+def get_loan_details(loan_name):
+	try:
+		loan_doc = frappe.get_doc("Loan", loan_name).as_dict()
+		
+		# Ensure applicant name is resolved using dict indexing
+		applicant = loan_doc.get("applicant")
+		applicant_name = loan_doc.get("applicant_name")
+		if applicant and not applicant_name:
+			loan_doc["applicant_name"] = frappe.db.get_value("Employee", applicant, "employee_name")
+			
+		# Fetch repayment schedule
+		schedule_doc_name = frappe.db.get_value("Loan Repayment Schedule", {"loan": loan_name})
+		if schedule_doc_name:
+			schedule_doc = frappe.get_doc("Loan Repayment Schedule", schedule_doc_name)
+			loan_doc["repayment_schedule"] = [row.as_dict() for row in schedule_doc.repayment_schedule]
+		else:
+			loan_doc["repayment_schedule"] = []
+			
+		return success_response(loan_doc)
+	except Exception as e:
+		return error_response(f"Error fetching loan details: {str(e)}", e)
+
+
+@frappe.whitelist()
+def get_salary_slip_print_html(salary_slip):
+	"""
+	Returns rendered standard Frappe Print HTML for a salary slip.
+	Used by frontend to trigger direct print or PDF save via browser engine,
+	preventing 0-byte corrupt files when system wkhtmltopdf is missing.
+	"""
+	try:
+		if not frappe.db.exists("Salary Slip", salary_slip):
+			return error_response("Salary Slip not found.")
+		
+		# Ensure permissions
+		slip_doc = frappe.get_doc("Salary Slip", salary_slip)
+		html = frappe.get_print("Salary Slip", salary_slip)
+		
+		return success_response({
+			"html": html,
+			"employee_name": slip_doc.employee_name,
+			"employee": slip_doc.employee,
+			"name": slip_doc.name,
+			"posting_date": slip_doc.posting_date,
+			"start_date": slip_doc.start_date,
+			"end_date": slip_doc.end_date
+		})
+	except Exception as e:
+		return error_response(f"Failed to render Salary Slip: {str(e)}", e)
 
 
 @frappe.whitelist()

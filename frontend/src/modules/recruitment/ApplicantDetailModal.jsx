@@ -17,6 +17,7 @@ export function ApplicantDetailModal({
   applicant,
   onShortlist,
   onDecision,
+  onRefresh,
   isActionLoading,
   initialSchedulingOpen = false
 }) {
@@ -41,17 +42,11 @@ export function ApplicantDetailModal({
   const [interviewTime, setInterviewTime] = useState('');
   const [isScheduling, setIsScheduling] = useState(false);
 
-  // Auto-set a default interviewer when changing to Round 2 or 3
+  // Clear or reset interviewers only when applicant changes
   useEffect(() => {
-    if (interviewRound === 2 || interviewRound === 3) {
-      // Fetch any active employee to act as a default if none is selected
-      if (selectedInterviewers.length === 0) {
-      // Intentionally leaving blank so the user selects interviewers manually from EmployeeSelect.
-      }
-    } else {
-      setSelectedInterviewers([]); // Clear for Round 1
-    }
-  }, [interviewRound]);
+    setSelectedInterviewers([]);
+    setInterviewTime('');
+  }, [applicant?.name]);
 
   const [scheduledInterviews, setScheduledInterviews] = useState([]);
   const [isLoadingInterviews, setIsLoadingInterviews] = useState(false);
@@ -74,27 +69,12 @@ export function ApplicantDetailModal({
     }
   };
 
-  // Offer letter: HR uploads the actual file from their machine — nothing
-  // is auto-generated or sent without a file being picked first. These
-  // MUST stay above the `if (!applicant) return null` guard below — React
-  // requires every hook to run on every render, in the same order. Having
-  // them after an early return meant this component called a different
-  // number of hooks depending on whether `applicant` was set, which is
-  // exactly when it's non-null (i.e. the moment a candidate is actually
-  // clicked) — a real, confirmed crash, not a hypothetical one.
   const [isOfferLetterOpen, setIsOfferLetterOpen] = useState(false);
   const [offerLetterFile, setOfferLetterFile] = useState(null);
   const [isSendingOffer, setIsSendingOffer] = useState(false);
+  const [isOnboarding, setIsOnboarding] = useState(false);
 
   if (!applicant) return null;
-
-  const copyBookingLink = () => {
-    if (applicant.booking_url) {
-      navigator.clipboard.writeText(applicant.booking_url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }
-  };
 
   const handleTriggerDecision = (type) => {
     setSelectedDecision(type);
@@ -133,8 +113,12 @@ export function ApplicantDetailModal({
   };
 
   const handleScheduleInterview = async () => {
-    if (!selectedInterviewers.length || !interviewTime) {
-      addToast('Please select at least one interviewer and a time.', 'error');
+    if (!selectedInterviewers || selectedInterviewers.length === 0) {
+      addToast('Please select at least one interviewer.', 'error');
+      return;
+    }
+    if (!interviewTime) {
+      addToast('Please select a scheduled date and time.', 'error');
       return;
     }
     
@@ -328,28 +312,7 @@ export function ApplicantDetailModal({
           </div>
         )}
 
-        {/* Candidate Slot Booking Token Banner */}
-        {applicant.booking_url && (
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-amber-500" />
-                <h4 className="text-sm font-bold text-amber-800">Candidate Slot Booking Link Active</h4>
-              </div>
-              <p className="text-sm text-amber-700/80 mt-1">
-                Candidate was emailed the booking link. You can also share it directly:
-              </p>
-            </div>
 
-            <button
-              onClick={copyBookingLink}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-100 text-amber-700 border border-amber-200 text-sm font-bold transition-colors shrink-0 shadow-sm"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-              <span>{copied ? 'Copied!' : 'Copy Link'}</span>
-            </button>
-          </div>
-        )}
 
         {/* Feedback / Scorecard Summary */}
         {applicant.interview_rating_summary && (
@@ -464,6 +427,14 @@ export function ApplicantDetailModal({
           {applicant.stage === 'Accepted' && (
             <div className="flex items-center justify-end gap-2.5 w-full">
               <Button
+                variant="danger"
+                isLoading={isActionLoading}
+                onClick={() => handleTriggerDecision('Reject')}
+              >
+                Reject
+              </Button>
+
+              <Button
                 variant="secondary"
                 icon={Send}
                 onClick={() => setIsOfferLetterOpen(true)}
@@ -471,11 +442,6 @@ export function ApplicantDetailModal({
                 Send Offer Letter
               </Button>
 
-              {/* `applicant.employee` comes from get_pipeline's batched
-                  Employee-by-email lookup. Previously this button showed
-                  unconditionally even after onboarding already succeeded,
-                  so re-clicking just threw "Employee EMP-XXXXXX already
-                  exists with this email" instead of not being offered at all. */}
               {applicant.employee ? (
                 <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
                   <UserCheck className="h-4 w-4" />
@@ -485,18 +451,26 @@ export function ApplicantDetailModal({
                 <Button
                   variant="primary"
                   icon={UserCheck}
-                  isLoading={isActionLoading}
+                  isLoading={isOnboarding || isActionLoading}
+                  disabled={isOnboarding || isActionLoading}
                   onClick={async () => {
+                    if (isOnboarding || isActionLoading) return;
+                    setIsOnboarding(true);
                     try {
                       const res = await callApi('st_automation.api.recruitment.onboard_candidate', { applicant_id: applicant.name });
-                      addToast(res.message, 'success');
+                      addToast(res.message || 'Successfully onboarded as Employee!', 'success');
+                      if (onRefresh) {
+                        onRefresh();
+                      }
                       onClose();
                     } catch (err) {
                       addToast(err.message || 'Failed to onboard candidate', 'error');
+                    } finally {
+                      setIsOnboarding(false);
                     }
                   }}
                 >
-                  Onboard as Employee
+                  {isOnboarding ? 'Onboarding Employee...' : 'Onboard as Employee'}
                 </Button>
               )}
             </div>

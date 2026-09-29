@@ -76,7 +76,8 @@ export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoa
                 <th className="px-4 py-3">Loan Amount</th>
                 <th className="px-4 py-3">Monthly EMI</th>
                 <th className="px-4 py-3">Tenure</th>
-                <th className="px-4 py-3">Disbursed</th>
+                <th className="px-4 py-3">Repayment Start</th>
+                <th className="px-4 py-3">Next Repayment</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
@@ -97,7 +98,10 @@ export function ActiveLoansView({ onLaunchLoanWizard, company, loans = [], isLoa
                   <td className="px-4 py-3 font-semibold text-brand-black dark:text-slate-50">{formatCurrency(loan.loan_amount)}</td>
                   <td className="px-4 py-3 text-brand-grey">{formatCurrency(loan.monthly_repayment_amount)} / mo</td>
                   <td className="px-4 py-3 text-brand-grey">{loan.repayment_periods} months</td>
-                  <td className="px-4 py-3 text-brand-grey">{formatDate(loan.disbursement_date || loan.posting_date)}</td>
+                  <td className="px-4 py-3 text-brand-grey">{formatDate(loan.repayment_start_date)}</td>
+                  <td className="px-4 py-3 text-brand-grey">
+                    {loan.next_repayment_date ? formatDate(loan.next_repayment_date) : (loan.status === 'Disbursed' ? '-' : 'Pending')}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge variant={LOAN_STATUS_VARIANT[loan.status] || 'default'}>{loan.status}</Badge>
                   </td>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  CreditCard, ChevronRight, ChevronLeft, CheckCircle2, 
-  AlertCircle, ShieldCheck, DollarSign, Calculator, Settings2
+import {
+  CreditCard, ChevronRight, ChevronLeft, CheckCircle2, CheckCircle,
+  AlertCircle, ShieldCheck, DollarSign, Calculator, Settings2, FileText
 } from 'lucide-react';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
