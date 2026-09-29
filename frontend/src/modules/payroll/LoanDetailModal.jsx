@@ -36,10 +36,9 @@ export function LoanDetailModal({ loanId, onClose, onRefresh }) {
   const fetchLoanDetails = async () => {
     try {
       setLoading(true);
-      const res = await callApi('frappe.client.get', {
-        doctype: 'Loan',
-        name: loanId
-      });
+      const res = await callApi('st_automation.api.payroll.get_loan_details', {
+        loan_name: loanId
+      }, 'GET');
       setLoan(res.data);
     } catch (err) {
       console.error('Failed to fetch loan details:', err);

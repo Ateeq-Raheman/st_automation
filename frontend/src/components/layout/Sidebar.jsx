@@ -14,12 +14,13 @@ export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, se
 
   const navSections = [
     {
-      title: 'Recruitment',
-      visible: isRecruiter || isInterviewer,
+      title: 'Recruitment & Contracts',
+      visible: isRecruiter || isInterviewer || isEmployee,
       items: [
         { id: 'recruitment-pipeline', label: 'Candidate Pipeline', icon: Users, visible: isRecruiter },
         { id: 'job-openings', label: 'Job Openings', icon: Briefcase, visible: isRecruiter },
         { id: 'my-interviews', label: 'Scheduled Interviews', icon: CalendarCheck, visible: isInterviewer },
+        { id: 'offer-letters', label: isHR ? 'Offer Letters & Contracts' : 'My Offer Letter', icon: FileText, visible: true },
       ]
     },
     {

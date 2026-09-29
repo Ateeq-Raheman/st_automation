@@ -31,6 +31,9 @@ import { SelectCandidateModal } from './modules/recruitment/SelectCandidateModal
 import { QuickAddApplicantModal } from './modules/recruitment/QuickAddApplicantModal';
 import { QuickAddJobOpeningModal } from './modules/recruitment/QuickAddJobOpeningModal';
 import { FeedbackScorecardModal } from './modules/recruitment/FeedbackScorecardModal';
+import { OfferLettersView } from './modules/recruitment/OfferLettersView';
+import { offerLetterApi } from './api/offerLetterApi';
+import { Careers } from './pages/Careers';
 
 // Payroll Views & Modals
 import { PayrollDashboard } from './modules/payroll/PayrollDashboard';
@@ -55,6 +58,7 @@ export function AppContent() {
   const [isInterviewFeedbackMode, setIsInterviewFeedbackMode] = useState(false);
   const [isPublicOnboardingMode, setIsPublicOnboardingMode] = useState(false);
   const [isPublicExitMode, setIsPublicExitMode] = useState(false);
+  const [isPublicCareersMode, setIsPublicCareersMode] = useState(false);
 
   // User & Company Context
   const [userProfile, setUserProfile] = useState(null);
@@ -109,6 +113,10 @@ export function AppContent() {
   // Template State
   const [editingTemplate, setEditingTemplate] = useState({ type: null, name: null });
 
+  // Offer Letters State
+  const [offerLetters, setOfferLetters] = useState([]);
+  const [isOfferLettersLoading, setIsOfferLettersLoading] = useState(false);
+
   // Detect Public Candidate Route or Interview Feedback Route
   useEffect(() => {
     const checkRoute = () => {
@@ -117,11 +125,13 @@ export function AppContent() {
       const isFeedback = window.location.pathname.includes('interview-feedback') || searchParams.has('token');
       const isOnboarding = searchParams.has('onboarding_token');
       const isExit = searchParams.has('exit_token');
+      const isCareers = window.location.hash.includes('careers') || window.location.pathname.includes('careers');
       
       setIsPublicCandidateMode(isBooking);
       setIsInterviewFeedbackMode(isFeedback);
       setIsPublicOnboardingMode(isOnboarding);
       setIsPublicExitMode(isExit);
+      setIsPublicCareersMode(isCareers);
     };
     checkRoute();
     window.addEventListener('hashchange', checkRoute);
@@ -232,6 +242,18 @@ export function AppContent() {
     }
   }, [selectedCompany]);
 
+  const loadOfferLetters = useCallback(async () => {
+    setIsOfferLettersLoading(true);
+    try {
+      const res = await offerLetterApi.getOfferLetters(selectedCompany);
+      setOfferLetters(res.data?.offers || []);
+    } catch (err) {
+      console.error('Error loading offer letters', err);
+    } finally {
+      setIsOfferLettersLoading(false);
+    }
+  }, [selectedCompany]);
+
   useEffect(() => {
     if (!isPublicCandidateMode && !isPublicOnboardingMode && !isPublicExitMode) {
       loadRecruitment();
@@ -239,8 +261,9 @@ export function AppContent() {
       loadDiagnostics();
       loadOnboarding();
       loadExit();
+      loadOfferLetters();
     }
-  }, [isPublicCandidateMode, isPublicOnboardingMode, isPublicExitMode, loadRecruitment, loadPayroll, loadDiagnostics, loadOnboarding, loadExit]);
+  }, [isPublicCandidateMode, isPublicOnboardingMode, isPublicExitMode, loadRecruitment, loadPayroll, loadDiagnostics, loadOnboarding, loadExit, loadOfferLetters]);
 
   // 1-Click Handlers: Recruitment
   const handleShortlist = async (applicant) => {
@@ -328,6 +351,17 @@ export function AppContent() {
       loadRecruitment();
     } catch (err) {
       addToast('Failed to update job opening', 'error');
+    }
+  };
+
+  const handleDeleteJobOpening = async (jobName) => {
+    if (!window.confirm('Are you sure you want to delete this job opening?')) return;
+    try {
+      await recruitmentApi.deleteJobOpening(jobName);
+      addToast('Job Opening deleted successfully', 'success');
+      loadRecruitment();
+    } catch (err) {
+      addToast(err.message || 'Failed to delete Job Opening', 'error');
     }
   };
 
@@ -434,6 +468,10 @@ export function AppContent() {
     return <ExitStatusPage />;
   }
 
+  if (isPublicCareersMode) {
+    return <Careers />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 text-brand-black dark:text-slate-50 flex overflow-x-hidden">
       {/* Sidebar Navigation */}
@@ -486,6 +524,7 @@ export function AppContent() {
               onTogglePublish={handleToggleJob}
               isLoading={isRecruitmentLoading}
               onNewJobOpening={() => setIsNewJobOpeningOpen(true)}
+              onDeleteJobOpening={handleDeleteJobOpening}
             />
           )}
 
@@ -511,6 +550,16 @@ export function AppContent() {
                   : undefined
               }
               isLoading={isRecruitmentLoading}
+            />
+          )}
+
+          {activeTab === 'offer-letters' && (
+            <OfferLettersView
+              offers={offerLetters}
+              isHR={userProfile?.is_hr_admin || userProfile?.is_system_manager}
+              isLoading={isOfferLettersLoading}
+              onRefresh={loadOfferLetters}
+              selectedCompany={selectedCompany}
             />
           )}
           
@@ -620,6 +669,7 @@ export function AppContent() {
         applicant={activeApplicant}
         onShortlist={handleShortlist}
         onDecision={handleDecision}
+        onRefresh={loadRecruitment}
         isActionLoading={isActionLoading}
         initialSchedulingOpen={openInSchedulingMode}
       />
