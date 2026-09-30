@@ -81,8 +81,11 @@ export async function callApi(methodPath, params = {}, httpMethod = 'POST') {
       throw new Error(errorMsg);
     }
 
-    // Frappe returns { message: { status: 'success', data: ... } } or direct payload
-    if (data.message && typeof data.message === 'object' && 'status' in data.message) {
+    // Frappe returns { message: { status: 'success', data: ... } } for this app's own
+    // whitelisted endpoints, or a raw document/value for generic ones (e.g. frappe.client.get).
+    // Require both `status` and `data` keys — some doctypes (e.g. Loan) have their own
+    // unrelated `status` field, which would otherwise be misdetected as this envelope.
+    if (data.message && typeof data.message === 'object' && 'status' in data.message && 'data' in data.message) {
       if (data.message.status === 'error') {
         throw new Error(data.message.message || 'Operation failed');
       }

@@ -1,6 +1,6 @@
 import frappe
 from frappe.utils import now_datetime, add_to_date, nowdate, getdate
-from st_automation.api.utils import success_response, error_response, generate_secure_token
+from st_automation.api.utils import success_response, error_response, generate_secure_token, get_hr_manager_emails
 
 def get_site_onboarding_url(token):
     base_url = frappe.utils.get_url()
@@ -366,6 +366,7 @@ def _send_link_email(employee_doc, url, flow_type):
     try:
         frappe.sendmail(
             recipients=[email],
+            cc=get_hr_manager_emails(),
             subject=subject,
             message=message,
             now=True
@@ -392,7 +393,38 @@ def _check_and_update_boarding_status(project_name):
 
     onb = frappe.db.exists("Employee Onboarding", {"project": project_name})
     if onb:
+        old_status = frappe.db.get_value("Employee Onboarding", onb, "boarding_status")
         frappe.db.set_value("Employee Onboarding", onb, "boarding_status", status)
+        if status == "Completed" and old_status != "Completed":
+            # Send Onboarding Completed Email
+            try:
+                ob_doc = frappe.get_doc("Employee Onboarding", onb)
+                emp_email = frappe.db.get_value("Employee", ob_doc.employee, "personal_email") or frappe.db.get_value("Employee", ob_doc.employee, "company_email")
+                if emp_email:
+                    completed_sub = f"🎉 Onboarding Completed! Welcome to Standard Touch — {ob_doc.employee_name}"
+                    completed_msg = f"""
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                        <h2 style="color: #10b981; margin-top: 0;">🎉 Congratulations & Welcome Aboard!</h2>
+                        <p>Hi {ob_doc.employee_name},</p>
+                        <p>All activities and requirements in your onboarding pipeline have been <strong>100% successfully completed</strong>!</p>
+                        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 6px; margin: 20px 0;">
+                            <p style="margin: 0; font-size: 14px; color: #166534;"><strong>Employee ID:</strong> {ob_doc.employee}</p>
+                            <p style="margin: 4px 0 0; font-size: 14px; color: #166534;"><strong>Designation:</strong> {ob_doc.designation or 'Team Member'}</p>
+                        </div>
+                        <p>We are thrilled to have you with us. If you have any questions or need further equipment or assistance, please reach out to the HR Operations team.</p>
+                        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+                        <p style="font-size: 12px; color: #94a3b8;">Standard Touch HR Operations Team</p>
+                    </div>
+                    """
+                    frappe.sendmail(
+                        recipients=[emp_email],
+                        cc=get_hr_manager_emails(),
+                        subject=completed_sub,
+                        message=completed_msg,
+                        now=True
+                    )
+            except Exception as onb_err:
+                frappe.log_error(title="st_automation Onboarding Completed Email", message=f"Note: {onb_err}")
 
     sep = frappe.db.exists("Employee Separation", {"project": project_name})
     if sep:

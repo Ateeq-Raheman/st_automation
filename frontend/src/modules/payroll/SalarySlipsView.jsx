@@ -1,16 +1,77 @@
 import React, { useState } from 'react';
 import { 
   FileText, Download, Eye, Mail, Search, 
-  ExternalLink, CheckCircle2, DollarSign
+  ExternalLink, CheckCircle2, DollarSign, Printer
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
-import { formatCurrency, formatDate } from '../../api/client';
+import { formatCurrency, formatDate, callApi } from '../../api/client';
 
 export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSlipForPreview, setSelectedSlipForPreview] = useState(null);
+  const [downloadingSlip, setDownloadingSlip] = useState(null);
+
+  const handlePrintSlip = async (slip) => {
+    try {
+      setDownloadingSlip(slip.name);
+      const res = await callApi('st_automation.api.payroll.get_salary_slip_print_html', {
+        salary_slip: slip.name
+      }, 'GET');
+
+      if (!res.data?.html) {
+        throw new Error('Failed to render print format');
+      }
+
+      // Format custom document title for clean PDF filename when saved:
+      // "Salary-Slip-[Employee-Name]-[Period/SlipID]"
+      const safeEmpName = (slip.employee_name || slip.employee || 'Employee').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeSlipId = slip.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const docTitle = `Salary-Slip_${safeEmpName}_${safeSlipId}`;
+
+      // Open print window
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        // Fallback to hidden iframe if popups blocked
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+        iframe.contentDocument.write(res.data.html);
+        iframe.contentDocument.title = docTitle;
+        iframe.contentDocument.close();
+        iframe.contentWindow.focus();
+        setTimeout(() => {
+          iframe.contentWindow.print();
+          document.body.removeChild(iframe);
+        }, 500);
+        return;
+      }
+
+      printWindow.document.open();
+      printWindow.document.write(res.data.html);
+      printWindow.document.title = docTitle;
+      printWindow.document.close();
+      printWindow.focus();
+
+      // Trigger print dialog once loaded
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+
+    } catch (err) {
+      console.error('Failed to print slip:', err);
+      // Fallback to opening raw printview in new tab
+      window.open(slip.pdf_url, '_blank');
+    } finally {
+      setDownloadingSlip(null);
+    }
+  };
 
   const filteredSlips = slips.filter((s) => {
     if (!searchQuery) return true;
@@ -95,19 +156,18 @@ export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh 
                         <button
                           onClick={() => setSelectedSlipForPreview(slip)}
                           className="p-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 text-brand-red hover:text-brand-black dark:text-slate-50 hover:bg-brand-red transition-colors"
-                          title="Preview Salary Slip PDF"
+                          title="Preview Salary Slip"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <a
-                          href={slip.pdf_url}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          onClick={() => handlePrintSlip(slip)}
+                          disabled={downloadingSlip === slip.name}
                           className="p-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 text-brand-grey hover:text-brand-black dark:text-slate-50 hover:bg-gray-200 transition-colors"
-                          title="Print / View Slip"
+                          title="Print / Save as PDF"
                         >
-                          <Eye className="h-4 w-4" />
-                        </a>
+                          <Download className={`h-4 w-4 ${downloadingSlip === slip.name ? 'animate-bounce text-brand-red' : ''}`} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -140,15 +200,14 @@ export function SalarySlipsView({ slips = [], isLoading, month, year, onRefresh 
               <div className="text-sm text-brand-grey">
                 Net Pay: <span className="text-emerald-600 font-bold text-sm">{formatCurrency(selectedSlipForPreview.net_pay)}</span>
               </div>
-              <a
-                href={selectedSlipForPreview.pdf_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-red hover:bg-red-500 text-white font-bold text-sm"
+              <Button
+                variant="primary"
+                icon={Download}
+                onClick={() => handlePrintSlip(selectedSlipForPreview)}
+                isLoading={downloadingSlip === selectedSlipForPreview.name}
               >
-                <Eye className="h-4 w-4" />
-                <span>Print / View Slip</span>
-              </a>
+                Print / Save PDF
+              </Button>
             </div>
           </div>
         </Modal>
