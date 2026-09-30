@@ -456,6 +456,7 @@ def send_exit_documents(separation, task_name):
 
         frappe.sendmail(
             recipients=[emp_doc.personal_email],
+            cc=["hr@erp.standardtouch.com"],
             subject=f"Exit Documents - {emp_doc.employee_name}",
             message=message,
             attachments=attachments,
