@@ -256,6 +256,18 @@ export function AppContent() {
 
   useEffect(() => {
     if (!isPublicCandidateMode && !isPublicOnboardingMode && !isPublicExitMode) {
+      if (activeTab === 'recruitment') loadRecruitment();
+      if (activeTab === 'payroll') loadPayroll();
+      if (activeTab === 'system') loadDiagnostics();
+      if (activeTab === 'onboarding-pipeline') loadOnboarding();
+      if (activeTab === 'exit-pipeline') loadExit();
+      if (activeTab === 'offer-letters') loadOfferLetters();
+    }
+  }, [activeTab, isPublicCandidateMode, isPublicOnboardingMode, isPublicExitMode, loadRecruitment, loadPayroll, loadDiagnostics, loadOnboarding, loadExit, loadOfferLetters]);
+
+  // Initial load
+  useEffect(() => {
+    if (!isPublicCandidateMode && !isPublicOnboardingMode && !isPublicExitMode) {
       loadRecruitment();
       loadPayroll();
       loadDiagnostics();

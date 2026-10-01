@@ -231,9 +231,23 @@ export function TemplateFormPage({ templateType, templateName, onBack }) {
                       placeholder="e.g. Issue Laptop"
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-red"
                     />
+                    {templateType === 'Onboarding' && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`assignable-${index}`}
+                          checked={act.custom_is_assignable === 1}
+                          onChange={e => updateActivity(index, 'custom_is_assignable', e.target.checked ? 1 : 0)}
+                          className="w-3.5 h-3.5 text-brand-red rounded border-slate-300 focus:ring-brand-red"
+                        />
+                        <label htmlFor={`assignable-${index}`} className="text-xs text-slate-600 dark:text-slate-400 font-medium cursor-pointer">
+                          Requires External Assignment
+                        </label>
+                      </div>
+                    )}
                   </div>
                   
-                  {templateType === 'Onboarding' ? (
+                  {templateType === 'Onboarding' && act.custom_is_assignable === 1 ? (
                     <div className="col-span-6 md:col-span-4">
                       <label className="block text-xs font-bold text-slate-500 mb-1">Assign To (User / Role)</label>
                       <div className="flex gap-2">

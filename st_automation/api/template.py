@@ -35,7 +35,8 @@ def get_template(template_type, name):
                 "duration": act.duration,
                 "task_weight": act.task_weight,
                 "required_for_employee_creation": act.required_for_employee_creation,
-                "description": act.description
+                "description": act.description,
+                "custom_is_assignable": getattr(act, "custom_is_assignable", 0)
             })
             
         return success_response({
@@ -78,7 +79,8 @@ def save_template(template_type, data):
                 "duration": int(act.get("duration") or 0),
                 "task_weight": float(act.get("task_weight") or 1.0),
                 "required_for_employee_creation": int(act.get("required_for_employee_creation") or 0),
-                "description": act.get("description")
+                "description": act.get("description"),
+                "custom_is_assignable": int(act.get("custom_is_assignable") or 0)
             })
             
         doc.save(ignore_permissions=True)
