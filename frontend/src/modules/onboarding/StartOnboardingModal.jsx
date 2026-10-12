@@ -59,6 +59,7 @@ export function StartOnboardingModal({ isOpen, onClose, company, onSuccess }) {
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
     if (!selectedEmployee) { addToast('Please select an employee', 'error'); return; }
     setIsSubmitting(true);
     try {

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { exitApi } from '../../api/exitApi';
 import { useToast } from '../../components/common/Toast';
-import { Plus, ChevronDown, ChevronUp, CheckCircle2, Clock, Lock, UserMinus, Send, Copy, LinkIcon, Link2Off, MessageSquarePlus, User, AlertTriangle, LogOut, Calendar } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, CheckCircle2, Clock, Lock, UserMinus, Send, Copy, LinkIcon, Link2Off, MessageSquarePlus, User, AlertTriangle, LogOut, Calendar, FileText } from 'lucide-react';
+import ExitDocumentModal from './ExitDocumentModal';
 
 export function ExitPipelineView({ pipelineData, isLoading, onRefresh, onStartSeparation }) {
   const { addToast } = useToast();
@@ -12,6 +13,7 @@ export function ExitPipelineView({ pipelineData, isLoading, onRefresh, onStartSe
   const [assignInputs, setAssignInputs] = useState({});
   const [markLeftDialog, setMarkLeftDialog] = useState(null); // { employee, employee_name }
   const [relievingDate, setRelievingDate] = useState(new Date().toISOString().split('T')[0]);
+  const [documentModalState, setDocumentModalState] = useState(null); // { isOpen, separation, taskName }
 
   const handleCompleteStage = async (separation, taskName) => {
     setIsActionLoading(true);
@@ -322,13 +324,24 @@ export function ExitPipelineView({ pipelineData, isLoading, onRefresh, onStartSe
                                       Assign
                                     </button>
                                   )}
-                                  <button
-                                    onClick={() => handleCompleteStage(sep.name, task.name)}
-                                    disabled={isActionLoading}
-                                    className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors shadow-sm disabled:opacity-50"
-                                  >
-                                    Mark Complete
-                                  </button>
+                                  {task.subject.startsWith('Exit Documents') ? (
+                                    <button
+                                      onClick={() => setDocumentModalState({ isOpen: true, separation: sep.name, taskName: task.name })}
+                                      disabled={isActionLoading}
+                                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                      Generate Documents
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleCompleteStage(sep.name, task.name)}
+                                      disabled={isActionLoading}
+                                      className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors shadow-sm disabled:opacity-50"
+                                    >
+                                      Mark Complete
+                                    </button>
+                                  )}
                                 </>
                               )}
                               {isCompleted && (
@@ -409,6 +422,18 @@ export function ExitPipelineView({ pipelineData, isLoading, onRefresh, onStartSe
           </div>
         </div>
       )}
+
+      {/* Document Generator Modal */}
+      <ExitDocumentModal 
+        isOpen={documentModalState?.isOpen}
+        onClose={() => setDocumentModalState(null)}
+        separation={documentModalState?.separation}
+        taskName={documentModalState?.taskName}
+        onComplete={() => {
+          addToast('Documents successfully sent!', 'success');
+          onRefresh();
+        }}
+      />
     </div>
   );
 }
