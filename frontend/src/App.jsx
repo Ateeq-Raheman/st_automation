@@ -49,10 +49,13 @@ import { DiagnosticsView } from './modules/diagnostics/DiagnosticsView';
 import { CandidateSlotBooking } from './modules/candidate/CandidateSlotBooking';
 import InterviewFeedback from './pages/InterviewFeedback';
 
+// Feedback Module
+import { FeedbackPortal } from './modules/feedback/FeedbackPortal';
+
 export function AppContent() {
   const { addToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState('recruitment-pipeline');
+  const [activeTab, setActiveTab] = useState(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isPublicCandidateMode, setIsPublicCandidateMode] = useState(false);
   const [isInterviewFeedbackMode, setIsInterviewFeedbackMode] = useState(false);
@@ -148,15 +151,34 @@ export function AppContent() {
           setSelectedCompany(res.data.default_company);
         }
         
-        // Default tab logic based on roles
-        if (res.data && !res.data.is_recruiter && !res.data.is_interviewer && res.data.is_employee && !res.data.is_hr_admin) {
-          setActiveTab('salary-slips');
-        } else if (activeTab === 'salary-slips' && !res.data.is_hr_admin && !res.data.is_employee) {
-          // Fallback if somehow invalid tab
-          setActiveTab('recruitment-pipeline');
-        }
+        // Default tab logic strictly based on roles & permissions
+        const profile = res.data;
+        const isHR = profile?.is_hr_admin || profile?.is_system_manager;
+        const isRecruiter = profile?.is_recruiter || isHR;
+        const isInterviewer = profile?.is_interviewer || isRecruiter;
+        const isEmployee = profile?.is_employee;
+
+        setActiveTab((prev) => {
+          // If already set to a tab that the user has permission to view, keep it
+          if (prev) {
+            if (prev === 'recruitment-pipeline' || prev === 'job-openings') return isRecruiter ? prev : (isEmployee ? 'salary-slips' : 'staff-feedback');
+            if (prev === 'my-interviews') return isInterviewer ? prev : (isEmployee ? 'salary-slips' : 'staff-feedback');
+            if (prev === 'payroll-command' || prev === 'run-payroll' || prev === 'loans' || prev === 'onboarding-pipeline' || prev === 'exit-pipeline' || prev === 'templates' || prev === 'diagnostics') {
+              return isHR ? prev : (isEmployee ? 'salary-slips' : 'staff-feedback');
+            }
+            if (prev === 'salary-slips') return (isHR || isEmployee) ? prev : 'staff-feedback';
+            return prev;
+          }
+
+          // Otherwise pick the best default for the user's role:
+          if (isRecruiter) return 'recruitment-pipeline';
+          if (isInterviewer) return 'my-interviews';
+          if (isEmployee) return 'salary-slips';
+          return 'staff-feedback';
+        });
       } catch (e) {
         console.error('Failed to load user profile', e);
+        setActiveTab((prev) => prev || 'staff-feedback');
       }
     };
     loadProfile();
@@ -666,6 +688,16 @@ export function AppContent() {
               onRefresh={loadDiagnostics}
               onAutoFix={handleAutoFix}
               isFixing={isFixing}
+            />
+          )}
+
+          {/* Feedback Module */}
+          {(activeTab === 'staff-feedback' || activeTab === 'my-feedback' || activeTab === 'feedback-analytics') && (
+            <FeedbackPortal
+              viewMode={activeTab}
+              selectedCompany={selectedCompany}
+              userProfile={userProfile}
+              onNavigateTab={(tab) => setActiveTab(tab)}
             />
           )}
         </main>
