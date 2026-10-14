@@ -28,6 +28,7 @@ export async function uploadFile(file, { isPrivate = true, doctype, docname } = 
   const response = await fetch('/api/method/upload_file', {
     method: 'POST',
     headers: { 'X-Frappe-CSRF-Token': getCsrfToken() },
+    credentials: 'include',
     body: formData,
   });
   const data = await response.json();
@@ -55,6 +56,7 @@ export async function callApi(methodPath, params = {}, httpMethod = 'POST') {
     let fetchOptions = {
       method: httpMethod,
       headers,
+      credentials: 'include',
     };
 
     if (isGet) {
