@@ -3,7 +3,7 @@ import {
   Users, Briefcase, CalendarCheck, 
   DollarSign, PlayCircle, Gift, CreditCard, 
   FileText, Activity, ExternalLink, Users2,
-  UserPlus, UserMinus
+  UserPlus, UserMinus, MessageSquare, BarChart3, Heart
 } from 'lucide-react';
 
 export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, setIsMobileOpen }) {
@@ -39,6 +39,15 @@ export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, se
         { id: 'run-payroll', label: 'Run Monthly Payroll', icon: PlayCircle, visible: isHR, badge: 'Wizard' },
         { id: 'loans', label: 'Loans & Advances', icon: CreditCard, visible: isHR, badge: '3-Step' },
         { id: 'salary-slips', label: 'My Salary Slips', icon: FileText, visible: isHR || isEmployee },
+      ]
+    },
+    {
+      title: 'Feedback & Culture',
+      visible: true,
+      items: [
+        { id: 'staff-feedback', label: 'Staff Feedback', icon: MessageSquare, visible: true },
+        { id: 'my-feedback', label: 'My Feedback', icon: Heart, visible: true },
+        { id: 'feedback-analytics', label: 'Feedback Analytics', icon: BarChart3, visible: isHR },
       ]
     },
     {
