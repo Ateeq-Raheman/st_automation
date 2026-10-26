@@ -31,22 +31,17 @@ export function OfferLettersView({
     email: '',
     designation: '',
     offer_date: new Date().toISOString().split('T')[0],
-    training_duration: '6 months',
-    training_stipend: 'INR 5,000/month',
-    salary_range: 'INR 10,000 - 15,000/month',
-    contract_duration: '24 Months + 6 months of Training',
-    reporting_manager: 'Mr. Abdul Nasir Mauzam Ali',
-    hr_signatory_name: 'Muzammil Siddiqui',
-    responsibilities: `Analyzing business requirements and translating them into technical specifications for ERP systems
-Designing and developing ERP modules or customizing existing modules to meet specific business needs
-Creating and maintaining technical documentation related to ERP systems, such as user manuals, technical specifications, and test plans.
-Testing and debugging ERP systems to ensure they are functioning correctly
-Working with cross-functional teams to integrate ERP systems with other business systems, such as CRM and SCM systems
-Providing technical support and troubleshooting for ERP systems to end-users`
+    training_duration: '',
+    training_stipend: '',
+    salary_range: '',
+    contract_duration: '',
+    reporting_manager: '',
+    hr_signatory_name: '',
+    responsibilities: ''
   });
 
   const [presets, setPresets] = useState({});
-  const [selectedPreset, setSelectedPreset] = useState('ERP Developer / Engineer');
+  const [selectedPreset, setSelectedPreset] = useState('');
   const [isManagingPresets, setIsManagingPresets] = useState(false);
   const [newPresetRole, setNewPresetRole] = useState('');
   const [isSavingPreset, setIsSavingPreset] = useState(false);
@@ -556,7 +551,7 @@ Providing technical support and troubleshooting for ERP systems to end-users`
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Mr. Ameer Pasha"
+                    placeholder="e.g. Candidate Full Name"
                     value={formData.candidate_name}
                     onChange={(e) => setFormData({ ...formData, candidate_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
@@ -609,6 +604,7 @@ Providing technical support and troubleshooting for ERP systems to end-users`
                   </label>
                   <input
                     type="text"
+                    placeholder="e.g. INR 10,000 - 15,000/month"
                     value={formData.salary_range}
                     onChange={(e) => setFormData({ ...formData, salary_range: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
@@ -621,6 +617,7 @@ Providing technical support and troubleshooting for ERP systems to end-users`
                   </label>
                   <input
                     type="text"
+                    placeholder="e.g. INR 5,000/month"
                     value={formData.training_stipend}
                     onChange={(e) => setFormData({ ...formData, training_stipend: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
@@ -633,6 +630,7 @@ Providing technical support and troubleshooting for ERP systems to end-users`
                   </label>
                   <input
                     type="text"
+                    placeholder="e.g. 6 months"
                     value={formData.training_duration}
                     onChange={(e) => setFormData({ ...formData, training_duration: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
@@ -645,6 +643,7 @@ Providing technical support and troubleshooting for ERP systems to end-users`
                   </label>
                   <input
                     type="text"
+                    placeholder="e.g. 24 Months + 6 months of Training"
                     value={formData.contract_duration}
                     onChange={(e) => setFormData({ ...formData, contract_duration: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
@@ -657,6 +656,7 @@ Providing technical support and troubleshooting for ERP systems to end-users`
                   </label>
                   <input
                     type="text"
+                    placeholder="e.g. Reporting Manager Name"
                     value={formData.reporting_manager}
                     onChange={(e) => setFormData({ ...formData, reporting_manager: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
@@ -669,6 +669,7 @@ Providing technical support and troubleshooting for ERP systems to end-users`
                   </label>
                   <input
                     type="text"
+                    placeholder="e.g. HR Signatory Name"
                     value={formData.hr_signatory_name}
                     onChange={(e) => setFormData({ ...formData, hr_signatory_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
