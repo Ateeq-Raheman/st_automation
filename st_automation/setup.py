@@ -188,14 +188,12 @@ def setup_custom_fields():
 				"fieldname": "reporting_manager",
 				"label": "Reporting Manager",
 				"fieldtype": "Data",
-				"default": "Mr. Abdul Nasir Mauzam Ali",
 				"insert_after": "contract_duration",
 			},
 			{
 				"fieldname": "hr_signatory_name",
 				"label": "HR Signatory Name",
 				"fieldtype": "Data",
-				"default": "Muzammil Siddiqui",
 				"insert_after": "reporting_manager",
 			},
 			{

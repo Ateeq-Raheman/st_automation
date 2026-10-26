@@ -157,6 +157,28 @@ def get_offer_letters(company=None):
 	If current user is an Employee, returns only their own offer letter.
 	"""
 	try:
+		# Auto-heal schema if custom fields are missing on this site
+		meta = frappe.get_meta("Job Offer")
+		if not meta.has_field("responsibilities_text") or not meta.has_field("training_duration"):
+			try:
+				from st_automation.setup import setup_custom_fields
+				setup_custom_fields()
+				frappe.clear_cache(doctype="Job Offer")
+				meta = frappe.get_meta("Job Offer")
+			except Exception:
+				pass
+
+		base_fields = [
+			"name", "job_applicant", "applicant_name", "applicant_email",
+			"status", "offer_date", "designation", "company", "creation"
+		]
+		extra_fields = [
+			"training_duration", "training_stipend", "salary_range",
+			"contract_duration", "reporting_manager", "hr_signatory_name",
+			"employee"
+		]
+		fetch_fields = base_fields + [f for f in extra_fields if meta.has_field(f)]
+
 		user = frappe.session.user
 		roles = set(frappe.get_roles(user))
 		is_hr = (user == "Administrator" or bool(roles & {"System Manager", "HR Manager", "HR User", "Payroll Manager"}))
@@ -173,9 +195,9 @@ def get_offer_letters(company=None):
 			
 			candidate_emails = [e for e in [emp.personal_email, emp.company_email] if e]
 			or_filters = []
-			if emp.name:
+			if emp.name and meta.has_field("employee"):
 				or_filters.append(["employee", "=", emp.name])
-			if candidate_emails:
+			if candidate_emails and meta.has_field("applicant_email"):
 				or_filters.append(["applicant_email", "in", candidate_emails])
 			
 			if not or_filters:
@@ -185,13 +207,7 @@ def get_offer_letters(company=None):
 				"Job Offer",
 				filters=filters,
 				or_filters=or_filters,
-				fields=[
-					"name", "job_applicant", "applicant_name", "applicant_email",
-					"status", "offer_date", "designation", "company",
-					"training_duration", "training_stipend", "salary_range",
-					"contract_duration", "reporting_manager", "hr_signatory_name",
-					"employee", "creation"
-				],
+				fields=fetch_fields,
 				order_by="creation desc"
 			)
 			return success_response({"offers": offers, "is_hr": False})
@@ -200,13 +216,7 @@ def get_offer_letters(company=None):
 		offers = frappe.get_all(
 			"Job Offer",
 			filters=filters,
-			fields=[
-				"name", "job_applicant", "applicant_name", "applicant_email",
-				"status", "offer_date", "designation", "company",
-				"training_duration", "training_stipend", "salary_range",
-				"contract_duration", "reporting_manager", "hr_signatory_name",
-				"employee", "creation"
-			],
+			fields=fetch_fields,
 			order_by="creation desc"
 		)
 		return success_response({"offers": offers, "is_hr": True})
@@ -229,7 +239,11 @@ def get_offer_letter_detail(offer_name):
 
 		if not is_hr:
 			emp = frappe.db.get_value("Employee", {"user_id": user}, ["name", "personal_email", "company_email"], as_dict=True)
-			if not emp or (doc.employee != emp.name and doc.applicant_email not in [emp.personal_email, emp.company_email]):
+			emp_name = emp.name if emp else None
+			emp_emails = [emp.personal_email, emp.company_email] if emp else []
+			doc_emp = getattr(doc, "employee", None)
+			doc_email = getattr(doc, "applicant_email", None)
+			if not emp or (doc_emp != emp_name and doc_email not in emp_emails):
 				frappe.throw("You do not have permission to view this Offer Letter.", frappe.PermissionError)
 
 		html = render_standardtouch_offer_letter_html(doc)
@@ -311,12 +325,22 @@ def create_or_update_offer_letter(
 		offer.designation = _resolve_designation(designation)
 		offer.company = _get_default_company()
 
+		# Auto-heal schema if custom fields are missing on this site
+		meta = frappe.get_meta("Job Offer")
+		if not meta.has_field("responsibilities_text") or not meta.has_field("training_duration"):
+			try:
+				from st_automation.setup import setup_custom_fields
+				setup_custom_fields()
+				frappe.clear_cache(doctype="Job Offer")
+			except Exception:
+				pass
+
 		offer.training_duration = training_duration or "6 months"
 		offer.training_stipend = training_stipend or "INR 5,000/month"
 		offer.salary_range = salary_range or "INR 10,000 - 15,000/month"
 		offer.contract_duration = contract_duration or "24 Months + 6 months of Training"
-		offer.reporting_manager = reporting_manager or "Mr. Abdul Nasir Mauzam Ali"
-		offer.hr_signatory_name = hr_signatory_name or "Muzammil Siddiqui"
+		offer.reporting_manager = reporting_manager or ""
+		offer.hr_signatory_name = hr_signatory_name or ""
 
 		if responsibilities:
 			if isinstance(responsibilities, list):
@@ -457,8 +481,8 @@ def render_standardtouch_offer_letter_html(offer):
 	training_duration = getattr(offer, "training_duration", None) or "6 months"
 	training_stipend = getattr(offer, "training_stipend", None) or "INR 5,000/month"
 	contract_duration = getattr(offer, "contract_duration", None) or "24 Months + 6 months of Training"
-	reporting_manager = getattr(offer, "reporting_manager", None) or "Mr. Abdul Nasir Mauzam Ali"
-	hr_signatory_name = getattr(offer, "hr_signatory_name", None) or "Muzammil Siddiqui"
+	reporting_manager = getattr(offer, "reporting_manager", None) or "Reporting Manager"
+	hr_signatory_name = getattr(offer, "hr_signatory_name", None) or "HR Operations Team"
 	applicant_name = getattr(offer, "applicant_name", None) or getattr(offer, "candidate_name", None) or "Candidate"
 	designation = getattr(offer, "designation", None) or "Team Member"
 
