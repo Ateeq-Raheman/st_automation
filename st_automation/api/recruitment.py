@@ -888,18 +888,18 @@ def _get_default_company():
 
 def _resolve_designation(job_title):
 	"""
-	Job Offer/Employee `designation` is a Link field to the Designation
-	doctype — it can't just be set to an arbitrary free-text job title
-	string (that raised "Could not find Designation: X" and was silently
-	swallowed by a bare except, so every Select decision's Job Offer
-	creation was failing without anyone noticing — confirmed via
-	`frappe.db.count("Job Offer") == 0` despite 6 candidates already marked
-	Selected/Hired). Auto-creates the Designation if it doesn't exist yet,
-	matching the pattern `onboard_candidate` already used for Employee
-	creation, now shared so both call sites can't drift out of sync again.
+	Job Offer/Employee `designation` is a Link field to the Designation doctype.
+	Auto-creates the Designation if it doesn't exist yet, and resolves Job Opening ID if passed.
 	"""
 	if not job_title:
 		return None
+
+	# If job_title passed is actually a Job Opening record ID (e.g. HR-OPN-...), resolve the real designation
+	if frappe.db.exists("Job Opening", job_title):
+		jo = frappe.db.get_value("Job Opening", job_title, ["designation", "job_title"], as_dict=True)
+		if jo:
+			job_title = jo.designation or jo.job_title or job_title
+
 	if frappe.db.exists("Designation", job_title):
 		return job_title
 	try:
@@ -1323,28 +1323,49 @@ def onboard_candidate(applicant_id):
 			return error_response(f"Applicant {applicant_id} does not exist.")
 
 		app_doc = frappe.get_doc("Job Applicant", applicant_id)
-		if app_doc.status not in ["Selected", "Accepted"]:
-			return error_response("Candidate must be Selected before onboarding.")
-			
-		# Check if Employee already exists for this email
-		existing = frappe.db.get_value("Employee", {"personal_email": app_doc.email_id})
+
+		# Check if Employee already exists for this email or job_applicant
+		existing = None
+		if app_doc.email_id:
+			existing = frappe.db.get_value("Employee", {"personal_email": app_doc.email_id}, "name")
+			if not existing:
+				existing = frappe.db.get_value("Employee", {"company_email": app_doc.email_id}, "name")
+		if not existing:
+			existing = frappe.db.get_value("Employee", {"job_applicant": applicant_id}, "name")
+
 		if existing:
-			return error_response(f"Employee {existing} already exists with this email.")
+			# Link to Job Offer if exists
+			if app_doc.email_id and frappe.db.exists("Job Offer", {"applicant_email": app_doc.email_id}):
+				frappe.db.set_value("Job Offer", {"applicant_email": app_doc.email_id}, "employee", existing)
+			app_doc.status = "Accepted"
+			app_doc.save(ignore_permissions=True)
+			frappe.db.commit()
+			return success_response({
+				"employee": existing,
+				"applicant_id": applicant_id,
+				"already_existed": True
+			}, message=f"Candidate is already onboarded as Employee {existing}!")
 
 		# Create Employee
 		emp = frappe.new_doc("Employee")
-		emp.first_name = app_doc.applicant_name
-		emp.personal_email = app_doc.email_id
+		candidate_name = (app_doc.applicant_name or "Employee").strip()
+		parts = candidate_name.split(" ", 1)
+		emp.first_name = parts[0]
+		if len(parts) > 1:
+			emp.last_name = parts[1]
+		emp.employee_name = candidate_name
+		if app_doc.email_id:
+			emp.personal_email = app_doc.email_id
 		emp.status = "Active"
 		emp.date_of_joining = nowdate()
-		
+
 		emp.designation = _resolve_designation(app_doc.job_title)
-		
+
 		emp.company = _get_default_company()
 		emp.job_applicant = applicant_id
-		
+
 		emp.flags.ignore_mandatory = True
-		
+
 		# Universally bypass permissions for this block
 		frappe.flags.ignore_permissions = True
 		try:
@@ -1352,10 +1373,19 @@ def onboard_candidate(applicant_id):
 			frappe.db.commit()
 		finally:
 			frappe.flags.ignore_permissions = False
+
+		# Link to Job Offer if exists
+		if app_doc.email_id and frappe.db.exists("Job Offer", {"applicant_email": app_doc.email_id}):
+			frappe.db.set_value("Job Offer", {"applicant_email": app_doc.email_id}, "employee", emp.name)
+
+		app_doc.status = "Accepted"
+		app_doc.save(ignore_permissions=True)
+		frappe.db.commit()
+
 		return success_response({
-		    "employee": emp.name,
-		    "applicant_id": applicant_id
-		}, message=f"Successfully onboarded {app_doc.applicant_name} as Employee {emp.name}!")
+			"employee": emp.name,
+			"applicant_id": applicant_id
+		}, message=f"Successfully onboarded {app_doc.applicant_name} as Employee {emp.name} in ERPNext!")
 	except Exception as e:
 		return error_response(f"Failed to onboard candidate: {str(e)}", e)
 
