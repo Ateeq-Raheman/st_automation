@@ -36,12 +36,14 @@ fixtures = [
 	{
 		"dt": "Custom Field",
 		"filters": [
-			["dt", "in", ["Job Applicant", "Job Opening", "Company", "Employee", "Employee Separation", "Employee Boarding Activity"]],
+			["dt", "in", ["Job Applicant", "Job Opening", "Company", "Employee", "Employee Separation", "Employee Boarding Activity", "Job Offer"]],
 			["fieldname", "in", [
 				"booking_token", "booking_token_expiry", "talent_pool_tag", "interview_rating_summary", 
 				"booked_slot_time", "interview_duration_mins", "default_interviewer",
 				"onboarding_status_token", "onboarding_status_token_expiry", "probation_end_date", "biometric_enrolled",
-				"exit_status_token", "exit_status_token_expiry", "rehire_eligible", "custom_is_assignable"
+				"exit_status_token", "exit_status_token_expiry", "rehire_eligible", "custom_is_assignable",
+				"candidate_name", "training_duration", "training_stipend", "salary_range", "contract_duration",
+				"reporting_manager", "hr_signatory_name", "responsibilities_text"
 			]]
 		]
 	}

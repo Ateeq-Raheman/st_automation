@@ -143,6 +143,75 @@ def setup_custom_fields():
 				"insert_after": "interview_duration_mins",
 			},
 		],
+		"Job Offer": [
+			{
+				"fieldname": "st_section_offer_contract",
+				"label": "StandardTouch Contract Terms",
+				"fieldtype": "Section Break",
+				"insert_after": "status",
+			},
+			{
+				"fieldname": "candidate_name",
+				"label": "Candidate Name",
+				"fieldtype": "Data",
+				"insert_after": "st_section_offer_contract",
+			},
+			{
+				"fieldname": "training_duration",
+				"label": "Training Duration",
+				"fieldtype": "Data",
+				"default": "6 months",
+				"insert_after": "candidate_name",
+			},
+			{
+				"fieldname": "training_stipend",
+				"label": "Travel / Training Allowance",
+				"fieldtype": "Data",
+				"default": "INR 5,000/month",
+				"insert_after": "training_duration",
+			},
+			{
+				"fieldname": "salary_range",
+				"label": "Salary Range After Training",
+				"fieldtype": "Data",
+				"default": "INR 10,000 - 15,000/month",
+				"insert_after": "training_stipend",
+			},
+			{
+				"fieldname": "contract_duration",
+				"label": "Contract Duration",
+				"fieldtype": "Data",
+				"default": "24 Months + 6 months of Training",
+				"insert_after": "salary_range",
+			},
+			{
+				"fieldname": "reporting_manager",
+				"label": "Reporting Manager",
+				"fieldtype": "Data",
+				"default": "Mr. Abdul Nasir Mauzam Ali",
+				"insert_after": "contract_duration",
+			},
+			{
+				"fieldname": "hr_signatory_name",
+				"label": "HR Signatory Name",
+				"fieldtype": "Data",
+				"default": "Muzammil Siddiqui",
+				"insert_after": "reporting_manager",
+			},
+			{
+				"fieldname": "employee",
+				"label": "Employee",
+				"fieldtype": "Link",
+				"options": "Employee",
+				"insert_after": "hr_signatory_name",
+			},
+			{
+				"fieldname": "responsibilities_text",
+				"label": "Key Responsibilities",
+				"fieldtype": "Small Text",
+				"insert_after": "employee",
+			},
+		],
 	}
 
 	try:
