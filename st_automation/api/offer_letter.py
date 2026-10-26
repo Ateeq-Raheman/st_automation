@@ -323,7 +323,7 @@ def create_or_update_offer_letter(
 				offer.responsibilities_text = "\n".join(responsibilities)
 			else:
 				offer.responsibilities_text = str(responsibilities)
-		elif not offer.responsibilities_text:
+		elif not getattr(offer, "responsibilities_text", None):
 			offer.responsibilities_text = "\n".join(DEFAULT_RESPONSIBILITIES)
 
 		# If employee already exists with this email, link it
@@ -442,21 +442,32 @@ def update_offer_status(offer_name, status):
 
 def render_standardtouch_offer_letter_html(offer):
 	"""Renders the exact 5-page StandardTouch Offer Letter as clean HTML/CSS for printing and PDF generation."""
-	date_str = formatdate(offer.offer_date, "dd/MM/yyyy") if offer.offer_date else nowdate()
+	offer_date = getattr(offer, "offer_date", None)
+	date_str = formatdate(offer_date, "dd/MM/yyyy") if offer_date else nowdate()
 	
 	# Responsibilities
-	resp_lines = [r.strip() for r in (offer.responsibilities_text or "").split("\n") if r.strip()]
+	resp_raw = getattr(offer, "responsibilities_text", None) or ""
+	resp_lines = [r.strip() for r in resp_raw.split("\n") if r.strip()]
 	if not resp_lines:
 		resp_lines = DEFAULT_RESPONSIBILITIES
 
 	resp_items = "".join([f"<li style='margin-bottom: 8px;'>{r}</li>" for r in resp_lines])
+
+	salary_range = getattr(offer, "salary_range", None) or "INR 10,000 - 15,000/month"
+	training_duration = getattr(offer, "training_duration", None) or "6 months"
+	training_stipend = getattr(offer, "training_stipend", None) or "INR 5,000/month"
+	contract_duration = getattr(offer, "contract_duration", None) or "24 Months + 6 months of Training"
+	reporting_manager = getattr(offer, "reporting_manager", None) or "Mr. Abdul Nasir Mauzam Ali"
+	hr_signatory_name = getattr(offer, "hr_signatory_name", None) or "Muzammil Siddiqui"
+	applicant_name = getattr(offer, "applicant_name", None) or getattr(offer, "candidate_name", None) or "Candidate"
+	designation = getattr(offer, "designation", None) or "Team Member"
 
 	html = f"""
 	<!DOCTYPE html>
 	<html>
 	<head>
 		<meta charset="utf-8">
-		<title>Offer Letter - {offer.applicant_name}</title>
+		<title>Offer Letter - {applicant_name}</title>
 		<style>
 			@page {{
 				size: A4 portrait;
@@ -606,12 +617,12 @@ def render_standardtouch_offer_letter_html(offer):
 				<div class="doc-title">OFFER LETTER</div>
 
 				<p style="margin: 6px 0;"><strong>Date:</strong> {date_str}</p>
-				<p style="margin: 6px 0; font-size: 15px;"><strong>Employment Proposal for:</strong> {offer.applicant_name}</p>
-				<p style="margin: 6px 0; font-size: 15px;"><strong>Position:</strong> {offer.designation or 'Team Member'}</p>
+				<p style="margin: 6px 0; font-size: 15px;"><strong>Employment Proposal for:</strong> {applicant_name}</p>
+				<p style="margin: 6px 0; font-size: 15px;"><strong>Position:</strong> {designation}</p>
 
 				<div style="background-color: #f9fafb; border-left: 4px solid #ef4444; padding: 12px; margin: 20px 0;">
 					<p style="margin: 0; font-size: 16px; font-weight: bold; text-decoration: underline;">
-						Salary - {offer.salary_range} (After {offer.training_duration} of training)
+						Salary - {salary_range} (After {training_duration} of training)
 					</p>
 					<p style="margin: 4px 0 0; font-size: 13px; color: #4b5563;">Salary Variable (Depending on performance)</p>
 				</div>
@@ -627,12 +638,12 @@ def render_standardtouch_offer_letter_html(offer):
 					<tr>
 						<td class="bullet-td">▪</td>
 						<td class="label-td">Travel allowance during Training</td>
-						<td class="val-td">{offer.training_stipend}</td>
+						<td class="val-td">{training_stipend}</td>
 					</tr>
 					<tr>
 						<td class="bullet-td">▪</td>
 						<td class="label-td">Training Duration</td>
-						<td class="val-td">{offer.training_duration}</td>
+						<td class="val-td">{training_duration}</td>
 					</tr>
 					<tr>
 						<td class="bullet-td">▪</td>
@@ -642,7 +653,7 @@ def render_standardtouch_offer_letter_html(offer):
 					<tr>
 						<td class="bullet-td">▪</td>
 						<td class="label-td">Contract</td>
-						<td class="val-td">{offer.contract_duration}</td>
+						<td class="val-td">{contract_duration}</td>
 					</tr>
 					<tr>
 						<td class="bullet-td">▪</td>
@@ -680,7 +691,7 @@ def render_standardtouch_offer_letter_html(offer):
 
 				<div style="margin-top: 40px; padding: 16px; background-color: #f3f4f6; border-radius: 6px;">
 					<p style="margin: 0; font-size: 15px; font-weight: bold;">
-						Reporting to: <span style="color: #ef4444;">{offer.reporting_manager}</span>
+						Reporting to: <span style="color: #ef4444;">{reporting_manager}</span>
 					</p>
 				</div>
 			</div>
@@ -818,13 +829,13 @@ def render_standardtouch_offer_letter_html(offer):
 				<div style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 20px;">
 					<div style="text-align: left;">
 						<div style="height: 40px; border-bottom: 1px solid #111827; width: 180px; margin-bottom: 8px;"></div>
-						<p style="margin: 0; font-weight: bold; font-size: 15px;">{offer.hr_signatory_name}</p>
+						<p style="margin: 0; font-weight: bold; font-size: 15px;">{hr_signatory_name}</p>
 						<p style="margin: 2px 0 0; color: #4b5563; font-size: 13px;">Human Resource Manager</p>
 					</div>
 
 					<div style="text-align: right;">
 						<div style="height: 40px; border-bottom: 1px solid #111827; width: 180px; margin-bottom: 8px; margin-left: auto;"></div>
-						<p style="margin: 0; font-weight: bold; font-size: 15px;">{offer.applicant_name}</p>
+						<p style="margin: 0; font-weight: bold; font-size: 15px;">{applicant_name}</p>
 						<p style="margin: 2px 0 0; color: #4b5563; font-size: 13px;">Read & Signed</p>
 					</div>
 				</div>

@@ -1,0 +1,195 @@
+[
+  {
+    "id": 1,
+    "name": "Application Acknowledgement",
+    "module": "Recruitment",
+    "trigger": "Candidate submits careers application form",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4bnbvsic21",
+      "subject": "Application Received: ERPNEXT Developer =?utf-8?b?4oCU?= Standard Touch",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:21.562922"
+    },
+    "ref": "ateeq@standardtouch.com-3"
+  },
+  {
+    "id": 2,
+    "name": "Interview Booking Confirmation",
+    "module": "Recruitment",
+    "trigger": "Candidate self-books an interview slot",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4bs79j7c7s",
+      "subject": "Confirmed: Interview for erpnext-developer =?utf-8?b?4oCU?= Standard Touch",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:22.026636"
+    }
+  },
+  {
+    "id": 3,
+    "name": "Interview Calendar Invite (.ics)",
+    "module": "Recruitment",
+    "trigger": "HR schedules round with interviewers",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4bu0t0gp5t",
+      "subject": "Interview Scheduled: Round 1 (Initial) with Ateeq Test Applicant",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:22.274625"
+    }
+  },
+  {
+    "id": 4,
+    "name": "Talent Pool / Bench Notification",
+    "module": "Recruitment",
+    "trigger": "HR marks candidate as 'Bench'",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4c5jl8g4sm",
+      "subject": "Update regarding your application for erpnext-developer =?utf-8?b?4oCU?= Standard Touch",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:22.990204"
+    }
+  },
+  {
+    "id": 5,
+    "name": "Rejection Notification",
+    "module": "Recruitment",
+    "trigger": "HR marks candidate as 'Reject'",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4car4loe5j",
+      "subject": "Update regarding your application for erpnext-developer =?utf-8?b?4oCU?= Standard Touch",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:23.464547"
+    }
+  },
+  {
+    "id": 6,
+    "name": "Offer Letter Email (Pipeline)",
+    "module": "Recruitment",
+    "trigger": "HR clicks 'Send Offer' in Candidate Pipeline",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4ceoa2oou2",
+      "subject": "Offer of Employment =?utf-8?b?4oCU?= erpnext-developer at Standard Touch",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:23.804249"
+    }
+  },
+  {
+    "id": 7,
+    "name": "5-Page Contract Offer Letter",
+    "module": "Offer Letters",
+    "trigger": "HR clicks 'Send Offer' in Offer Letters module",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4ci5mco2q0",
+      "subject": "Offer of Employment =?utf-8?b?4oCU?= erpnext-developer at Standard Touch",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:24.270615"
+    }
+  },
+  {
+    "id": 8,
+    "name": "Onboarding Status Link",
+    "module": "Onboarding",
+    "trigger": "AUTOMATIC: Fires on Employee creation (after_insert hook)",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4claf93ou7",
+      "subject": "Your Onboarding Status - Standard Touch",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:24.509618"
+    }
+  },
+  {
+    "id": 9,
+    "name": "Onboarding Completed Celebration",
+    "module": "Onboarding",
+    "trigger": "AUTOMATIC: When onboarding project reaches 100% complete",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4co2jm5omr",
+      "subject": "=?utf-8?q?=F0=9F=8E=89_Onboarding_Completed!_Welcome_to_Standard_Touch_=E2=80=94?= Ateeq Test Employee",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:24.873433"
+    }
+  },
+  {
+    "id": 10,
+    "name": "Salary Slip Breakdown Notification",
+    "module": "Payroll",
+    "trigger": "HR clicks 'Submit All Slips' in Monthly Payroll",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4croopkjfp",
+      "subject": "Salary Slip for October 2026 =?utf-8?b?4oCU?= Standard Touch",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:25.161809"
+    }
+  },
+  {
+    "id": 11,
+    "name": "Exit Documents Email",
+    "module": "Exit Management",
+    "trigger": "HR marks 'Send exit docs' task complete in separation checklist",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4cs5fk3n18",
+      "subject": "Exit Documents - Ateeq Test Employee",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:25.289155"
+    }
+  },
+  {
+    "id": 12,
+    "name": "Separation Status Link",
+    "module": "Exit Management",
+    "trigger": "AUTOMATIC: Fires on Employee Separation submission (on_submit hook)",
+    "status": "PASS",
+    "details": {
+      "queue_id": "4cujphqm9c",
+      "subject": "Your Employee Separation Status - Standard Touch",
+      "recipients": [
+        "ateeq@standardtouch.com"
+      ],
+      "attachments": [],
+      "created": "2026-10-21 21:58:25.410767"
+    }
+  }
+]
