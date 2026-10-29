@@ -9,6 +9,7 @@ import { Button } from '../../components/common/Button';
 import { formatDate } from '../../api/client';
 import { useToast } from '../../components/common/Toast';
 import { offerLetterApi } from '../../api/offerLetterApi';
+import { DateInput } from '../../components/common/DateInput';
 
 export function OfferLettersView({
   offers = [],
@@ -24,6 +25,7 @@ export function OfferLettersView({
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [onboardingOffer, setOnboardingOffer] = useState(null);
 
   // Form State for Generator
   const [formData, setFormData] = useState({
@@ -39,6 +41,18 @@ export function OfferLettersView({
     hr_signatory_name: '',
     responsibilities: ''
   });
+
+  const [formMeta, setFormMeta] = useState({
+    designations: [],
+    managers: [],
+    candidates: [],
+    training_durations: [],
+    contract_durations: []
+  });
+  const [isCustomDesignation, setIsCustomDesignation] = useState(false);
+  const [isCustomTraining, setIsCustomTraining] = useState(false);
+  const [isCustomContract, setIsCustomContract] = useState(false);
+  const [isCustomManager, setIsCustomManager] = useState(false);
 
   const [presets, setPresets] = useState({});
   const [selectedPreset, setSelectedPreset] = useState('');
@@ -57,9 +71,52 @@ export function OfferLettersView({
     }
   };
 
+  const fetchMetadata = async () => {
+    try {
+      const res = await offerLetterApi.getFormMetadata(selectedCompany);
+      if (res.data) {
+        setFormMeta(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load form metadata', err);
+    }
+  };
+
   useEffect(() => {
     fetchPresets();
-  }, []);
+    fetchMetadata();
+  }, [selectedCompany]);
+
+  const handleCandidateSelect = (applicantId) => {
+    if (!applicantId) return;
+    const cand = formMeta.candidates?.find(c => c.name === applicantId);
+    if (cand) {
+      const role = cand.job_title || '';
+      setFormData(prev => ({
+        ...prev,
+        candidate_name: cand.applicant_name || '',
+        email: cand.email_id || '',
+        designation: role
+      }));
+      setIsCustomDesignation(false);
+      if (presets[role]) {
+        handleSelectPreset(role);
+      }
+    }
+  };
+
+  const handleOnboardOffer = async (offerName) => {
+    setOnboardingOffer(offerName);
+    try {
+      const res = await offerLetterApi.onboardFromOffer(offerName);
+      addToast(res.message || 'Successfully onboarded candidate as Employee in ERPNext!', 'success');
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      addToast(err.message || 'Failed to onboard candidate', 'error');
+    } finally {
+      setOnboardingOffer(null);
+    }
+  };
 
   const handleSelectPreset = (roleTitle) => {
     setSelectedPreset(roleTitle);
@@ -340,6 +397,26 @@ export function OfferLettersView({
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {offer.status === 'Accepted' && (
+                            offer.employee ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+                                <UserCheck className="h-3.5 w-3.5" />
+                                Onboarded ({offer.employee})
+                              </span>
+                            ) : isHR && (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                icon={UserCheck}
+                                isLoading={onboardingOffer === offer.name}
+                                disabled={Boolean(onboardingOffer)}
+                                onClick={() => handleOnboardOffer(offer.name)}
+                              >
+                                Onboard Employee
+                              </Button>
+                            )
+                          )}
+
                           <Button
                             variant="secondary"
                             size="sm"
@@ -351,7 +428,7 @@ export function OfferLettersView({
 
                           {isHR && (
                             <Button
-                              variant="primary"
+                              variant="secondary"
                               size="sm"
                               icon={Send}
                               isLoading={isSending && selectedOffer === offer.name}
@@ -543,6 +620,27 @@ export function OfferLettersView({
             </div>
 
             <form onSubmit={handleSaveOffer} className="p-6 space-y-5">
+              {/* Optional: Pick from active applicants */}
+              {formMeta.candidates && formMeta.candidates.length > 0 && (
+                <div className="p-3 bg-gray-50 dark:bg-slate-800/80 rounded-xl border border-gray-200 dark:border-slate-700">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Quick-Fill from Pipeline Candidate (Optional)
+                  </label>
+                  <select
+                    onChange={(e) => handleCandidateSelect(e.target.value)}
+                    defaultValue=""
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red cursor-pointer"
+                  >
+                    <option value="">-- Choose a candidate to auto-populate details --</option>
+                    {formMeta.candidates.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.applicant_name} ({c.email_id}) — {c.job_title || 'No Role'} [{c.status}]
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
@@ -572,25 +670,68 @@ export function OfferLettersView({
                   />
                 </div>
 
+                {/* Position / Designation Select Field */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Position / Designation *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. ERP Developer"
-                    value={formData.designation}
-                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
-                  />
+                  <select
+                    value={isCustomDesignation ? '__custom__' : (formData.designation || '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__custom__') {
+                        setIsCustomDesignation(true);
+                        setFormData({ ...formData, designation: '' });
+                      } else {
+                        setIsCustomDesignation(false);
+                        setFormData({ ...formData, designation: val });
+                        if (presets[val]) {
+                          handleSelectPreset(val);
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red cursor-pointer"
+                  >
+                    <option value="">-- Select Position / Designation --</option>
+                    <optgroup label="Standard Roles (With Duty Presets)">
+                      {Object.keys(presets).map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </optgroup>
+                    {formMeta.designations && (
+                      <optgroup label="ERPNext Designations">
+                        {formMeta.designations
+                          .filter((d) => !presets[d])
+                          .map((d) => (
+                            <option key={d} value={d}>
+                              {d}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    <option value="__custom__">+ Other / Enter Custom Position...</option>
+                  </select>
+
+                  {isCustomDesignation && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Type custom position / designation title..."
+                      value={formData.designation}
+                      onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                      className="w-full mt-2 px-3 py-2 border border-brand-red/50 dark:border-brand-red/50 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20"
+                      autoFocus
+                    />
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Offer Letter Date
                   </label>
-                  <input
+                  <DateInput
                     type="date"
                     value={formData.offer_date}
                     onChange={(e) => setFormData({ ...formData, offer_date: e.target.value })}
@@ -624,43 +765,124 @@ export function OfferLettersView({
                   />
                 </div>
 
+                {/* Training Duration Select Field */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Training Duration
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 6 months"
-                    value={formData.training_duration}
-                    onChange={(e) => setFormData({ ...formData, training_duration: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
-                  />
+                  <select
+                    value={isCustomTraining ? '__custom__' : (formData.training_duration || '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__custom__') {
+                        setIsCustomTraining(true);
+                        setFormData({ ...formData, training_duration: '' });
+                      } else {
+                        setIsCustomTraining(false);
+                        setFormData({ ...formData, training_duration: val });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red cursor-pointer"
+                  >
+                    <option value="">-- Select Duration --</option>
+                    <option value="6 months">6 months (Standard)</option>
+                    <option value="3 months">3 months</option>
+                    <option value="1 month">1 month</option>
+                    <option value="12 months">12 months</option>
+                    <option value="Direct Full-time (No Training)">Direct Full-time (No Training)</option>
+                    <option value="__custom__">+ Custom Duration...</option>
+                  </select>
+
+                  {isCustomTraining && (
+                    <input
+                      type="text"
+                      placeholder="e.g. 4 months"
+                      value={formData.training_duration}
+                      onChange={(e) => setFormData({ ...formData, training_duration: e.target.value })}
+                      className="w-full mt-2 px-3 py-2 border border-brand-red/50 dark:border-brand-red/50 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20"
+                      autoFocus
+                    />
+                  )}
                 </div>
 
+                {/* Contract Commitment Select Field */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Contract Commitment
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 24 Months + 6 months of Training"
-                    value={formData.contract_duration}
-                    onChange={(e) => setFormData({ ...formData, contract_duration: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
-                  />
+                  <select
+                    value={isCustomContract ? '__custom__' : (formData.contract_duration || '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__custom__') {
+                        setIsCustomContract(true);
+                        setFormData({ ...formData, contract_duration: '' });
+                      } else {
+                        setIsCustomContract(false);
+                        setFormData({ ...formData, contract_duration: val });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red cursor-pointer"
+                  >
+                    <option value="">-- Select Contract Term --</option>
+                    <option value="24 Months + 6 months of Training">24 Months + 6 months of Training (Standard)</option>
+                    <option value="12 Months + 3 months of Training">12 Months + 3 months of Training</option>
+                    <option value="24 Months">24 Months Fixed</option>
+                    <option value="12 Months">12 Months Fixed</option>
+                    <option value="Permanent Employment">Permanent Employment</option>
+                    <option value="__custom__">+ Custom Commitment...</option>
+                  </select>
+
+                  {isCustomContract && (
+                    <input
+                      type="text"
+                      placeholder="e.g. 18 Months Commitment"
+                      value={formData.contract_duration}
+                      onChange={(e) => setFormData({ ...formData, contract_duration: e.target.value })}
+                      className="w-full mt-2 px-3 py-2 border border-brand-red/50 dark:border-brand-red/50 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20"
+                      autoFocus
+                    />
+                  )}
                 </div>
 
+                {/* Reporting Manager Select / Text Field */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Reporting Manager
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Reporting Manager Name"
-                    value={formData.reporting_manager}
-                    onChange={(e) => setFormData({ ...formData, reporting_manager: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"
-                  />
+                  <select
+                    value={isCustomManager ? '__custom__' : (formData.reporting_manager || '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__custom__') {
+                        setIsCustomManager(true);
+                        setFormData({ ...formData, reporting_manager: '' });
+                      } else {
+                        setIsCustomManager(false);
+                        setFormData({ ...formData, reporting_manager: val });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red cursor-pointer"
+                  >
+                    <option value="">-- Select Reporting Manager --</option>
+                    {formMeta.managers?.map((m) => (
+                      <option key={m.name} value={m.employee_name}>
+                        {m.employee_name} ({m.designation || 'Manager'})
+                      </option>
+                    ))}
+                    <option value="__custom__">+ Enter Custom Manager Name...</option>
+                  </select>
+
+                  {isCustomManager && (
+                    <input
+                      type="text"
+                      placeholder="e.g. Reporting Manager Name"
+                      value={formData.reporting_manager}
+                      onChange={(e) => setFormData({ ...formData, reporting_manager: e.target.value })}
+                      className="w-full mt-2 px-3 py-2 border border-brand-red/50 dark:border-brand-red/50 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20"
+                      autoFocus
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -669,7 +891,7 @@ export function OfferLettersView({
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. HR Signatory Name"
+                    placeholder="e.g. HR Signatory Full Name"
                     value={formData.hr_signatory_name}
                     onChange={(e) => setFormData({ ...formData, hr_signatory_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red"

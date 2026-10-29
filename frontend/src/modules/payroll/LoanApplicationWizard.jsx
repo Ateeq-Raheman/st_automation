@@ -9,6 +9,7 @@ import { Badge } from '../../components/common/Badge';
 import { formatCurrency } from '../../api/client';
 import { payrollApi } from '../../api/payrollApi';
 import EmployeeSelect from '../../components/EmployeeSelect';
+import { DateInput } from '../../components/common/DateInput';
 
 export function LoanApplicationWizard({ isOpen, onClose, onCreateLoan, onDisburseLoan, isSubmitting }) {
   const [step, setStep] = useState(1);
@@ -68,13 +69,15 @@ export function LoanApplicationWizard({ isOpen, onClose, onCreateLoan, onDisburs
         tenure_months: tenure,
         monthly_installment: Math.round(amt / tenure),
         total_repayment: amt,
-        moratorium_tenure: 0,
       });
       setStep(3);
     } finally {
       setIsPreviewLoading(false);
     }
   };
+
+  // Live value — the field is a string so it can be emptied while typing.
+  const moratorium = Number(formData.custom_moratorium) || 0;
 
   const handleSanctionLoan = async () => {
     const monthlyAmt = previewData?.monthly_installment || Math.round(Number(formData.amount) / Number(formData.tenure_months));
@@ -85,7 +88,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onCreateLoan, onDisburs
         formData.tenure_months,
         monthlyAmt,
         formData.loan_product,
-        formData.custom_moratorium,
+        moratorium,
         formData.disbursement_date
       );
       setCreatedLoanName(res.data.loan_name);
@@ -109,7 +112,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onCreateLoan, onDisburs
       isOpen={isOpen}
       onClose={onClose}
       title="4-Step Loan Application Wizard"
-      subtitle="Fast employee loan application with guaranteed 0-moratorium setup and disbursement."
+      subtitle="Fast employee loan application with EMI preview, optional moratorium and disbursement."
       maxWidth="max-w-xl"
     >
       <div className="space-y-6">
@@ -188,7 +191,7 @@ export function LoanApplicationWizard({ isOpen, onClose, onCreateLoan, onDisburs
                 always start from today regardless — never retroactive. */}
             <div>
               <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Loan Start (Disbursement) Date *</label>
-              <input
+              <DateInput
                 type="date"
                 required
                 max={todayStr}
@@ -218,10 +221,16 @@ export function LoanApplicationWizard({ isOpen, onClose, onCreateLoan, onDisburs
                     Moratorium Tenure (Periods) — Defaults to 0
                   </label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0"
                     value={formData.custom_moratorium}
-                    onChange={(e) => setFormData({ ...formData, custom_moratorium: Number(e.target.value) })}
+                    onChange={(e) => {
+                      // Keep digits only and drop leading zeros ("05" -> "5"),
+                      // but allow an empty field so Backspace clears the 0.
+                      const digits = e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+                      setFormData({ ...formData, custom_moratorium: digits });
+                    }}
                     className="w-32 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-brand-black dark:text-slate-50"
                   />
                   <p className="text-[13px] text-gray-500 dark:text-slate-400">
@@ -280,12 +289,21 @@ export function LoanApplicationWizard({ isOpen, onClose, onCreateLoan, onDisburs
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                <p className="text-sm text-emerald-700">
-                  <strong>Zero-Moratorium Verified:</strong> Installment of {formatCurrency(previewData.monthly_installment)} will automatically link to the next upcoming monthly payroll cycle.
-                </p>
-              </div>
+              {moratorium > 0 ? (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5">
+                  <ShieldCheck className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-700">
+                    <strong>Moratorium: {moratorium} month{moratorium > 1 ? 's' : ''}:</strong> the first installment of {formatCurrency(previewData.monthly_installment)} is deferred by {moratorium} payroll cycle{moratorium > 1 ? 's' : ''} after the next upcoming one.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <p className="text-sm text-emerald-700">
+                    <strong>Zero-Moratorium Verified:</strong> Installment of {formatCurrency(previewData.monthly_installment)} will automatically link to the next upcoming monthly payroll cycle.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-slate-700">
@@ -324,6 +342,10 @@ export function LoanApplicationWizard({ isOpen, onClose, onCreateLoan, onDisburs
               <div className="flex justify-between text-gray-700 dark:text-slate-200">
                 <span>Duration:</span>
                 <span className="font-bold text-brand-black dark:text-slate-50">{formData.tenure_months} Months</span>
+              </div>
+              <div className="flex justify-between text-gray-700 dark:text-slate-200">
+                <span>Moratorium:</span>
+                <span className="font-bold text-brand-black dark:text-slate-50">{moratorium} Month{moratorium === 1 ? '' : 's'}</span>
               </div>
             </div>
 

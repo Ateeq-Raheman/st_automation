@@ -464,6 +464,165 @@ def update_offer_status(offer_name, status):
 		return error_response(f"Error updating offer status: {str(e)}", e)
 
 
+@frappe.whitelist()
+def get_offer_form_metadata(company=None):
+	"""Returns options for Offer Letter Generator form (Designations, Managers, Candidates, Durations)."""
+	try:
+		preset_titles = list(RESPONSIBILITY_PRESETS.keys())
+		erpn_desigs = frappe.get_all("Designation", fields=["name", "designation_name"], order_by="name asc")
+		desig_names = []
+		for p in preset_titles:
+			if p not in desig_names:
+				desig_names.append(p)
+		for d in erpn_desigs:
+			name = d.designation_name or d.name
+			if name and not name.startswith("__") and not name.startswith("HR-OPN-") and name not in desig_names:
+				desig_names.append(name)
+
+		mgr_filters = {"status": "Active"}
+		if company:
+			mgr_filters["company"] = company
+		employees = frappe.get_all(
+			"Employee",
+			filters=mgr_filters,
+			fields=["name", "employee_name", "designation"],
+			order_by="employee_name asc",
+			limit=100
+		)
+
+		candidates = frappe.get_all(
+			"Job Applicant",
+			filters={"status": ["in", ["Accepted", "Selected", "Replied", "Open"]]},
+			fields=["name", "applicant_name", "email_id", "job_title", "status"],
+			order_by="creation desc",
+			limit=50
+		)
+
+		training_durations = [
+			"6 months",
+			"3 months",
+			"1 month",
+			"12 months",
+			"Direct Full-time (No Training)"
+		]
+
+		contract_durations = [
+			"24 Months + 6 months of Training",
+			"12 Months + 3 months of Training",
+			"24 Months",
+			"12 Months",
+			"Permanent Employment"
+		]
+
+		return success_response({
+			"designations": desig_names,
+			"managers": employees,
+			"candidates": candidates,
+			"training_durations": training_durations,
+			"contract_durations": contract_durations,
+			"presets": RESPONSIBILITY_PRESETS
+		})
+	except Exception as e:
+		return error_response(f"Error loading form metadata: {str(e)}", e)
+
+
+@frappe.whitelist()
+def onboard_from_offer(offer_name):
+	"""Converts an accepted Job Offer into an Employee record in ERPNext and links the offer."""
+	user = frappe.session.user
+	roles = set(frappe.get_roles(user))
+	if user != "Administrator" and not (roles & {"System Manager", "HR Manager", "HR User", "Payroll Manager"}):
+		frappe.throw("Permission denied: Only HR can onboard employees.", frappe.PermissionError)
+
+	try:
+		if not frappe.db.exists("Job Offer", offer_name):
+			return error_response(f"Job Offer {offer_name} not found.")
+
+		offer = frappe.get_doc("Job Offer", offer_name)
+
+		# Check if already linked to employee
+		existing_emp_id = getattr(offer, "employee", None)
+		if existing_emp_id and frappe.db.exists("Employee", existing_emp_id):
+			return success_response({
+				"employee": existing_emp_id,
+				"already_existed": True
+			}, message=f"Candidate is already linked to Employee {existing_emp_id}.")
+
+		email = getattr(offer, "applicant_email", None)
+		candidate_name = getattr(offer, "applicant_name", None) or getattr(offer, "candidate_name", None) or "Employee"
+
+		# Check if employee already exists with this personal_email or company_email
+		existing = None
+		if email:
+			existing = frappe.db.get_value("Employee", {"personal_email": email}, "name")
+			if not existing:
+				existing = frappe.db.get_value("Employee", {"company_email": email}, "name")
+
+		if existing:
+			offer.employee = existing
+			offer.status = "Accepted"
+			offer.save(ignore_permissions=True)
+			frappe.db.commit()
+			return success_response({
+				"employee": existing,
+				"already_existed": True
+			}, message=f"Linked to existing ERPNext Employee {existing}!")
+
+		# Create new Employee in ERPNext
+		emp = frappe.new_doc("Employee")
+		parts = candidate_name.strip().split(" ", 1)
+		emp.first_name = parts[0]
+		if len(parts) > 1:
+			emp.last_name = parts[1]
+		emp.employee_name = candidate_name
+		if email:
+			emp.personal_email = email
+		emp.status = "Active"
+		emp.date_of_joining = offer.offer_date or nowdate()
+
+		desig = getattr(offer, "designation", None)
+		if desig:
+			emp.designation = _resolve_designation(desig)
+
+		emp.company = offer.company or _get_default_company()
+
+		if getattr(offer, "job_applicant", None):
+			emp.job_applicant = offer.job_applicant
+
+		rep_mgr = getattr(offer, "reporting_manager", None)
+		if rep_mgr:
+			mgr_emp = frappe.db.get_value("Employee", {"employee_name": rep_mgr, "status": "Active"}, "name")
+			if mgr_emp:
+				emp.reports_to = mgr_emp
+
+		emp.flags.ignore_mandatory = True
+		frappe.flags.ignore_permissions = True
+		try:
+			emp.insert(ignore_permissions=True)
+			frappe.db.commit()
+		finally:
+			frappe.flags.ignore_permissions = False
+
+		# Link employee back to offer
+		offer.employee = emp.name
+		offer.status = "Accepted"
+		offer.save(ignore_permissions=True)
+
+		# Also update Job Applicant status if linked
+		if getattr(offer, "job_applicant", None) and frappe.db.exists("Job Applicant", offer.job_applicant):
+			frappe.db.set_value("Job Applicant", offer.job_applicant, "status", "Accepted")
+
+		frappe.db.commit()
+
+		return success_response({
+			"employee": emp.name,
+			"offer_name": offer.name
+		}, message=f"Successfully onboarded {candidate_name} as Employee {emp.name} in ERPNext!")
+
+	except Exception as e:
+		return error_response(f"Error onboarding candidate: {str(e)}", e)
+
+
 def render_standardtouch_offer_letter_html(offer):
 	"""Renders the exact 5-page StandardTouch Offer Letter as clean HTML/CSS for printing and PDF generation."""
 	offer_date = getattr(offer, "offer_date", None)

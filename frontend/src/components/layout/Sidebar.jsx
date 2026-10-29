@@ -3,16 +3,16 @@ import {
   Users, Briefcase, CalendarCheck, 
   DollarSign, PlayCircle, Gift, CreditCard, 
   FileText, Activity, ExternalLink, Users2,
-  UserPlus, UserMinus, MessageSquare, BarChart3, Heart
+  UserPlus, UserMinus, MessageSquare, BarChart3, Heart, Layers
 } from 'lucide-react';
 
-export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, setIsMobileOpen }) {
+export function buildNavSections(userProfile) {
   const isHR = userProfile?.is_hr_admin || userProfile?.is_system_manager;
   const isRecruiter = userProfile?.is_recruiter || isHR;
   const isInterviewer = userProfile?.is_interviewer || isRecruiter;
   const isEmployee = userProfile?.is_employee;
 
-  const navSections = [
+  return [
     {
       title: 'Recruitment & Contracts',
       visible: isRecruiter || isInterviewer || isEmployee,
@@ -37,6 +37,7 @@ export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, se
       items: [
         { id: 'payroll-command', label: 'Payroll Overview', icon: DollarSign, visible: isHR },
         { id: 'run-payroll', label: 'Run Monthly Payroll', icon: PlayCircle, visible: isHR, badge: 'Wizard' },
+        { id: 'salary-structures', label: 'Salary Structures', icon: Layers, visible: isHR },
         { id: 'loans', label: 'Loans & Advances', icon: CreditCard, visible: isHR, badge: '3-Step' },
         { id: 'salary-slips', label: 'My Salary Slips', icon: FileText, visible: isHR || isEmployee },
       ]
@@ -59,6 +60,10 @@ export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, se
       ]
     }
   ];
+}
+
+export function Sidebar({ activeTab, setActiveTab, userProfile, isMobileOpen, setIsMobileOpen }) {
+  const navSections = buildNavSections(userProfile);
 
   return (
     <>

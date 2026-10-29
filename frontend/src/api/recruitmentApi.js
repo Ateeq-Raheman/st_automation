@@ -60,6 +60,9 @@ export const recruitmentApi = {
       publish,
     }),
   
+  updateJobOpening: (jobOpeningId, fields) =>
+    callApi('st_automation.api.recruitment.update_job_opening', { job_opening_id: jobOpeningId, ...fields }),
+
   toggleJobOpening: (jobOpeningId, publish) => 
     callApi('st_automation.api.recruitment.toggle_job_opening', { job_opening_id: jobOpeningId, publish }),
 

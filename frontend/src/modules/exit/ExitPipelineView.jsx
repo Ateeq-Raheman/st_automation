@@ -3,6 +3,7 @@ import { exitApi } from '../../api/exitApi';
 import { useToast } from '../../components/common/Toast';
 import { Plus, ChevronDown, ChevronUp, CheckCircle2, Clock, Lock, UserMinus, Send, Copy, LinkIcon, Link2Off, MessageSquarePlus, User, AlertTriangle, LogOut, Calendar, FileText } from 'lucide-react';
 import ExitDocumentModal from './ExitDocumentModal';
+import { DateInput } from '../../components/common/DateInput';
 
 export function ExitPipelineView({ pipelineData, isLoading, onRefresh, onStartSeparation }) {
   const { addToast } = useToast();
@@ -398,7 +399,7 @@ export function ExitPipelineView({ pipelineData, isLoading, onRefresh, onStartSe
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                   <Calendar className="inline h-4 w-4 mr-1 -mt-0.5" /> Relieving Date *
                 </label>
-                <input
+                <DateInput
                   type="date"
                   value={relievingDate}
                   onChange={e => setRelievingDate(e.target.value)}

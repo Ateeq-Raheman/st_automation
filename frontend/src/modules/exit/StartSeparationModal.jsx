@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { exitApi } from '../../api/exitApi';
 import { useToast } from '../../components/common/Toast';
 import { X, UserMinus, Search, Calendar } from 'lucide-react';
+import { DateInput } from '../../components/common/DateInput';
 
 export function StartSeparationModal({ isOpen, onClose, company, onSuccess }) {
   const { addToast } = useToast();
@@ -170,7 +171,7 @@ export function StartSeparationModal({ isOpen, onClose, company, onSuccess }) {
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                 <Calendar className="inline h-4 w-4 mr-1 -mt-0.5" /> Resignation Date *
               </label>
-              <input
+              <DateInput
                 type="date"
                 value={resignationDate}
                 onChange={e => setResignationDate(e.target.value)}
@@ -181,7 +182,7 @@ export function StartSeparationModal({ isOpen, onClose, company, onSuccess }) {
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                 <Calendar className="inline h-4 w-4 mr-1 -mt-0.5" /> Relieving Date
               </label>
-              <input
+              <DateInput
                 type="date"
                 value={relievingDate}
                 onChange={e => setRelievingDate(e.target.value)}

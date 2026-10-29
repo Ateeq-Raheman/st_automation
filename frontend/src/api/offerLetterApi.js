@@ -29,4 +29,10 @@ export const offerLetterApi = {
 
   updateOfferStatus: (offerName, status) =>
     callApi('st_automation.api.offer_letter.update_offer_status', { offer_name: offerName, status }),
+
+  getFormMetadata: (company) =>
+    callApi('st_automation.api.offer_letter.get_offer_form_metadata', { company }, 'GET'),
+
+  onboardFromOffer: (offerName) =>
+    callApi('st_automation.api.offer_letter.onboard_from_offer', { offer_name: offerName }),
 };
