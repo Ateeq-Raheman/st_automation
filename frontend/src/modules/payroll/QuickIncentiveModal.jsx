@@ -3,6 +3,7 @@ import { Gift, DollarSign, User, Calendar, FileText } from 'lucide-react';
 import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import EmployeeSelect from '../../components/EmployeeSelect';
+import { DateInput } from '../../components/common/DateInput';
 
 export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitting }) {
   const [formData, setFormData] = useState({
@@ -87,7 +88,7 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Starts From *</label>
-              <input
+              <DateInput
                 type="date"
                 required
                 value={formData.from_date}
@@ -97,7 +98,7 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Ends On (leave blank to continue indefinitely)</label>
-              <input
+              <DateInput
                 type="date"
                 value={formData.to_date}
                 onChange={(e) => setFormData({ ...formData, to_date: e.target.value })}
@@ -108,7 +109,7 @@ export function QuickIncentiveModal({ isOpen, onClose, onAddIncentive, isSubmitt
         ) : (
           <div>
             <label className="block text-sm font-bold text-gray-700 dark:text-slate-200 mb-1.5">Payroll Date</label>
-            <input
+            <DateInput
               type="date"
               value={formData.payroll_date}
               onChange={(e) => setFormData({ ...formData, payroll_date: e.target.value })}

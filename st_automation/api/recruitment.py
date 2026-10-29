@@ -1170,7 +1170,7 @@ def get_job_openings(company=None):
 		openings = frappe.get_all(
 			"Job Opening",
 			filters=filters,
-			fields=["name", "job_title", "status", "designation", "department", "vacancies", "publish"],
+			fields=["name", "job_title", "status", "designation", "department", "vacancies", "publish", "description"],
 			order_by="creation desc"
 		)
 
@@ -1193,6 +1193,41 @@ def get_departments(company=None):
 		return success_response({"departments": departments})
 	except Exception as e:
 		return error_response("Error loading departments", e)
+
+
+@frappe.whitelist()
+def update_job_opening(job_opening_id, job_title=None, department=None, vacancies=None,
+		status=None, publish=None, description=None):
+	"""Edits an existing Job Opening (the "U" next to create/toggle/delete)."""
+	try:
+		doc = frappe.get_doc("Job Opening", job_opening_id)
+
+		if job_title is not None:
+			new_title = job_title.strip()
+			if not new_title:
+				return error_response("Job title is required.")
+			# Only re-point the Designation when it was the one auto-created from
+			# the old title; a hand-picked Designation is left alone.
+			if new_title != doc.job_title and doc.designation == doc.job_title:
+				doc.designation = _resolve_designation(new_title) or doc.designation
+			doc.job_title = new_title
+		if department is not None:
+			doc.department = _resolve_department(department, doc.company) if department else None
+		if vacancies is not None:
+			doc.vacancies = safe_int(vacancies, 1) or 1
+		if status in ("Open", "Closed"):
+			doc.status = status
+		if publish is not None:
+			doc.publish = 1 if cint(publish) else 0
+		if description is not None:
+			doc.description = description
+
+		doc.flags.ignore_permissions = True
+		doc.save(ignore_permissions=True)
+		frappe.db.commit()
+		return success_response({"name": doc.name}, message=f"Job Opening '{doc.job_title}' updated!")
+	except Exception as e:
+		return error_response(f"Error updating job opening: {str(e)}", e)
 
 
 @frappe.whitelist()

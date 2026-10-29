@@ -9,6 +9,7 @@ import { Button } from '../../components/common/Button';
 import { formatDate } from '../../api/client';
 import { useToast } from '../../components/common/Toast';
 import { offerLetterApi } from '../../api/offerLetterApi';
+import { DateInput } from '../../components/common/DateInput';
 
 export function OfferLettersView({
   offers = [],
@@ -730,7 +731,7 @@ export function OfferLettersView({
                   <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                     Offer Letter Date
                   </label>
-                  <input
+                  <DateInput
                     type="date"
                     value={formData.offer_date}
                     onChange={(e) => setFormData({ ...formData, offer_date: e.target.value })}

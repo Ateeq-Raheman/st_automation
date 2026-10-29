@@ -3,6 +3,7 @@ import { onboardingApi } from '../../api/onboardingApi';
 import { useToast } from '../../components/common/Toast';
 import { X, UserPlus, Search, Calendar, Loader2 } from 'lucide-react';
 import { callApi } from '../../api/client';
+import { DateInput } from '../../components/common/DateInput';
 
 export function StartOnboardingModal({ isOpen, onClose, company, onSuccess }) {
   const { addToast } = useToast();
@@ -175,7 +176,7 @@ export function StartOnboardingModal({ isOpen, onClose, company, onSuccess }) {
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
               <Calendar className="inline h-4 w-4 mr-1 -mt-0.5" /> Joining Date
             </label>
-            <input
+            <DateInput
               type="date"
               value={joiningDate}
               onChange={e => setJoiningDate(e.target.value)}
