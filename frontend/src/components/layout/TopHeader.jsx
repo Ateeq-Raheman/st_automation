@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Plus, UserPlus, Gift, Building2 } from 'lucide-react';
+import { Menu, Plus, UserPlus, Gift, Building2, Search } from 'lucide-react';
 import { Button } from '../common/Button';
 
 export function TopHeader({ 
@@ -55,6 +55,16 @@ export function TopHeader({
           this bar. `title` keeps the action discoverable without the
           visible label. */}
       <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('st:open-command-palette'))}
+          title="Search (Ctrl+K)"
+          className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 px-2.5 sm:px-3 py-1.5 text-sm text-brand-grey hover:border-brand-red transition-colors"
+        >
+          <Search className="h-4 w-4" />
+          <span className="hidden md:inline">Search…</span>
+          <kbd className="hidden md:inline text-[11px] font-bold border border-gray-300 dark:border-slate-600 rounded px-1.5 py-0.5">Ctrl K</kbd>
+        </button>
         {isRecruiter && (
           <Button
             size="sm"

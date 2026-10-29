@@ -185,7 +185,7 @@ export function PayrollDashboard({
             </div>
             <h4 className="text-base font-bold text-brand-black dark:text-slate-50">Loan & Advance</h4>
             <p className="text-sm text-brand-grey">
-              Auto-calculated monthly EMI with guaranteed 0-moratorium setup and disbursement.
+              Auto-calculated monthly EMI with with optional moratorium and disbursement.
             </p>
           </div>
           <div className="pt-2">

@@ -4,6 +4,7 @@ import { Button } from '../../components/common/Button';
 import { Building2, Save, ChevronDown, IndianRupee } from 'lucide-react';
 import { callApi } from '../../api/client';
 import { useToast } from '../../components/common/Toast';
+import { DateInput } from '../../components/common/DateInput';
 
 export function AssignSalaryStructureModal({ isOpen, onClose, company, employee, onSuccess }) {
   const { addToast } = useToast();
@@ -72,6 +73,11 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
       onClose();
     } catch (err) {
       addToast(err.message || 'Failed to assign salary structure', 'error');
+      // The employee already has this assignment — nothing left to fix in
+      // this dialog, so dismiss it instead of leaving it open over the error.
+      if (/already\s+(exist|assigned)/i.test(err.message || '')) {
+        onClose();
+      }
     } finally {
       setLoading(false);
     }
@@ -151,7 +157,7 @@ export function AssignSalaryStructureModal({ isOpen, onClose, company, employee,
 
         <div>
           <label className="block text-sm font-bold text-brand-black dark:text-slate-50 mb-1.5">From Date</label>
-          <input
+          <DateInput
             type="date"
             required
             value={formData.from_date}

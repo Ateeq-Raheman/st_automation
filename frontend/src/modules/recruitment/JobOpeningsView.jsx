@@ -1,9 +1,9 @@
 import React from 'react';
-import { Briefcase, Globe, Users, Plus, CheckCircle, Clock, Trash2 } from 'lucide-react';
+import { Briefcase, Globe, Users, Plus, CheckCircle, Clock, Trash2, Pencil } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
 
-export function JobOpeningsView({ jobOpenings = [], onTogglePublish, isLoading, onNewJobOpening, onDeleteJobOpening }) {
+export function JobOpeningsView({ jobOpenings = [], onTogglePublish, isLoading, onNewJobOpening, onDeleteJobOpening, onEditJobOpening }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -33,6 +33,13 @@ export function JobOpeningsView({ jobOpenings = [], onTogglePublish, isLoading, 
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-bold text-brand-black dark:text-slate-50 tracking-tight">{job.job_title || job.name}</h3>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onEditJobOpening(job); }}
+                      className="text-gray-300 hover:text-brand-red transition-colors"
+                      title="Edit Job Opening"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); onDeleteJobOpening(job.name); }}
                       className="text-gray-300 hover:text-red-500 transition-colors"
@@ -47,6 +54,7 @@ export function JobOpeningsView({ jobOpenings = [], onTogglePublish, isLoading, 
                 <div className="text-sm text-brand-grey space-y-1">
                   {job.department && <p>Department: <span className="text-gray-800 dark:text-slate-100">{job.department}</span></p>}
                   {job.designation && <p>Designation: <span className="text-gray-800 dark:text-slate-100">{job.designation}</span></p>}
+                  {job.status === 'Closed' && <p><Badge variant="warning">Closed</Badge></p>}
                   {job.vacancies > 0 && <p>Vacancies: <span className="text-gray-800 dark:text-slate-100">{job.vacancies}</span></p>}
                 </div>
               </div>
